@@ -185,13 +185,14 @@ final class PortfolioViewModel: ObservableObject {
             apiCurrency: apiCurrency,
             brokerPrice: draft.currentBrokerPrice,
             brokerCurrency: draft.brokerCurrency,
-            displayCurrency: displayCurrency
+            displayCurrency: displayCurrency,
+            currencyService: CurrencyService.shared
         )
         inv.brokerName = draft.brokerName
         inv.apiBaseCurrency = apiCurrency.rawValue
         inv.brokerCurrency = draft.brokerCurrency.rawValue
         inv.displayCurrency = displayCurrency.rawValue
-        inv.fxRateAtCreation = Investment.fxRate(from: draft.brokerCurrency, to: displayCurrency)
+        inv.fxRateAtCreation = Investment.fxRate(from: draft.brokerCurrency, to: displayCurrency, currencyService: CurrencyService.shared)
     }
 
     // MARK: Live price refresh (Finnhub quotes + CoinGecko)

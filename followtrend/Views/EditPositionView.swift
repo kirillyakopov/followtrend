@@ -67,7 +67,8 @@ struct EditPositionView: View {
             apiCurrency: AppCurrency(rawValue: investment.nativeCurrency.uppercased()) ?? .usd,
             brokerPrice: parsedBrokerPrice,
             brokerCurrency: brokerCurrency,
-            displayCurrency: CurrencyService.shared.selectedCurrency
+            displayCurrency: CurrencyService.shared.selectedCurrency,
+            currencyService: CurrencyService.shared
         )
     }
 

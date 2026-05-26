@@ -12,616 +12,6 @@
 //
 
 import SwiftUI
-import Combine
-
-// MARK: - Pop Particle
-
-fileprivate struct PopParticle {
-    var x:  CGFloat
-    var y:  CGFloat
-    var vx: CGFloat
-    var vy: CGFloat
-    var opacity: Double
-    var radius:  CGFloat
-}
-
-// MARK: - Bubble Pop State
-
-fileprivate struct BubblePop {
-    let baseColor:   Color
-    var cx:          CGFloat
-    var cy:          CGFloat
-    var mainRadius:  CGFloat
-    var mainOpacity: Double
-    var particles:   [PopParticle]
-    var tick:        Int = 0
-    static let maxTicks = 52
-}
-
-// MARK: - Merging Particle (visual transition)
-
-struct MergingParticle: Identifiable {
-    let id: String
-    let symbol: String
-    var position: CGPoint
-    let targetPosition: CGPoint
-    var radius: CGFloat
-    var opacity: Double
-    let baseColor: Color
-}
-
-// MARK: - Temp Child Particle (temporary cluster expand preview)
-
-struct TempChildParticle: Identifiable {
-    let id: String
-    let symbol: String
-    let name: String
-    let gain: Double
-    let radius: CGFloat
-    let isWatchlist: Bool
-    var currentPosition: CGPoint = .zero
-}
-
-// MARK: - Physics Engine
-
-@MainActor
-final class BubblePhysicsEngine: ObservableObject {
-
-    var particles: [BubbleParticle] = []
-    fileprivate var pops: [BubblePop] = []
-    var mergingParticles: [MergingParticle] = []
-    private var expandedClusterPositions: [String: (position: CGPoint, velocity: CGVector)] = [:]
-    
-    // Temporary expansion preview state
-    var tempChildParticles: [TempChildParticle] = []
-    var expandedClusterID: String? = nil
-    var isTempExpanded: Bool = false
-    var expansionProgress: Double = 0.0
-
-    private var canvasSize: CGSize = .zero
-    private var tickCount:   Double = 0
-
-    // Correlation matrix injected from PortfolioViewModel
-    var correlationMatrix: [AssetPair: Double] = [:]
-
-    @Published var isLayoutReady: Bool = false
-
-    // ── Tuning — calm, floaty, never stuck ────────────────────────────────
-    private let gravity:              CGFloat = 0.0025   // gentle centre pull
-    private let damping:              CGFloat = 0.94     // strong deceleration for quick settle
-    private let collisionRestitution: CGFloat = 0.03     // 97% absorbed — ultra soft rebounds
-    private let boundaryBounce:       CGFloat = 0.02     // near-frictionless wall
-    private let repulsionPad:         CGFloat = 1.08     // 8% margin — stable no overlap spacing
-    private let driftAmplitude:       CGFloat = 0.005    // extremely subtle drift (no spinning)
-    private let idleDrift:            CGFloat = 0.0008   // static-like float after settle
-    // α scalar for correlation force: keeps forces gentle and frame-rate friendly
-    private let correlationAlpha:     CGFloat = 0.0018
-    private var spawnTask: Task<Void, Never>?
-
-    // MARK: - Lifecycle
-
-    func sync(particles newParticles: [BubbleParticle], in size: CGSize) {
-        canvasSize = size
-        tickCount  = 0
-        spawnTask?.cancel()
-        
-        let cx = size.width / 2
-        let cy = size.height / 2
-        let oldParticles = particles
-        let newIds = Set(newParticles.map { $0.id })
-        
-        // Remove ones that were deleted externally (if not popped)
-        particles.removeAll { !newIds.contains($0.id) }
-        
-        var syncedParticles: [BubbleParticle] = []
-        var added: [BubbleParticle] = []
-        
-        for var p in newParticles {
-            if let idx = particles.firstIndex(where: { $0.id == p.id }) {
-                var existing = particles[idx]
-                withAnimation(.spring(response: 0.45, dampingFraction: 0.78)) {
-                    existing.radius = p.radius
-                    existing.gain = p.gain
-                    existing.isWatchlist = p.isWatchlist
-                    existing.isCluster = p.isCluster
-                    existing.clusterSymbols = p.clusterSymbols
-                    existing.combinedValueText = p.combinedValueText
-                    existing.assetsCountText = p.assetsCountText
-                }
-                syncedParticles.append(existing)
-            } else {
-                if p.isCluster {
-                    // Merged cluster!
-                    // Find individual particles in oldParticles that are being merged
-                    let oldInvolved = oldParticles.filter { p.clusterSymbols.contains($0.symbol) }
-                    
-                    let midpoint: CGPoint
-                    let avgVelocity: CGVector
-                    if !oldInvolved.isEmpty {
-                        let sumX = oldInvolved.reduce(0.0) { $0 + $1.position.x * $1.radius }
-                        let sumY = oldInvolved.reduce(0.0) { $0 + $1.position.y * $1.radius }
-                        let sumR = oldInvolved.reduce(0.0) { $0 + $1.radius }
-                        midpoint = sumR > 0 ? CGPoint(x: sumX / sumR, y: sumY / sumR) : CGPoint(x: cx, y: cy)
-                        
-                        let sumVx = oldInvolved.reduce(0.0) { $0 + $1.velocity.dx }
-                        let sumVy = oldInvolved.reduce(0.0) { $0 + $1.velocity.dy }
-                        avgVelocity = CGVector(dx: sumVx / CGFloat(oldInvolved.count), dy: sumVy / CGFloat(oldInvolved.count))
-                    } else {
-                        midpoint = CGPoint(x: cx, y: cy)
-                        avgVelocity = .zero
-                    }
-                    
-                    // Add old particles to mergingParticles for animation
-                    for oldP in oldInvolved {
-                        let isPos = oldP.gain >= 0
-                        let isNeutral = abs(oldP.gain) < 0.05
-                        let baseColor = oldP.isWatchlist ? Color(hex: "#6366f1") : (isNeutral ? Color.gray : (isPos ? Color.jade : Color.crimson))
-                        
-                        self.mergingParticles.append(MergingParticle(
-                            id: oldP.id,
-                            symbol: oldP.symbol,
-                            position: oldP.position,
-                            targetPosition: midpoint,
-                            radius: oldP.radius,
-                            opacity: 1.0,
-                            baseColor: baseColor
-                        ))
-                    }
-                    
-                    p.position = midpoint
-                    p.velocity = avgVelocity
-                    p.spawnState = .spawning
-                    p.spawnProgress = 0.0
-                    syncedParticles.append(p)
-                } else if let cached = expandedClusterPositions[p.symbol] {
-                    // Expanded child! Initialize at cluster's last position
-                    let angle = CGFloat.random(in: 0...(2 * .pi))
-                    let speed = CGFloat.random(in: 0.8...1.5)
-                    p.position = cached.position
-                    p.velocity = CGVector(
-                        dx: cached.velocity.dx + cos(angle) * speed,
-                        dy: cached.velocity.dy + sin(angle) * speed
-                    )
-                    p.spawnState = .spawning
-                    p.spawnProgress = 0.0
-                    syncedParticles.append(p)
-                    expandedClusterPositions.removeValue(forKey: p.symbol)
-                } else {
-                    added.append(p)
-                }
-            }
-        }
-        
-        // Fix Dissolve Bug: Reset temp expansion if the expanded cluster is no longer in the snapshot
-        if let expId = expandedClusterID, !syncedParticles.contains(where: { $0.id == expId }) {
-            isTempExpanded = false
-            expandedClusterID = nil
-            tempChildParticles.removeAll()
-        }
-        
-        self.particles = syncedParticles
-        
-        guard !added.isEmpty else { return }
-
-        // Find threshold for large bubbles (top size or at least 55 radius)
-        let maxR = newParticles.map { $0.radius }.max() ?? 0
-        let largeThreshold = max(55.0, maxR * 0.75)
-        
-        if particles.isEmpty && !isLayoutReady {
-            // First initialization: pre-layout everything
-            var initialParticles: [BubbleParticle] = []
-            
-            for var p in added {
-                let isLarge = p.radius >= largeThreshold
-                if isLarge {
-                    // Place near center, fully active, no scale-in birth animation
-                    let offsetRange: CGFloat = 20.0
-                    p.position = CGPoint(
-                        x: cx + CGFloat.random(in: -offsetRange...offsetRange),
-                        y: cy + CGFloat.random(in: -offsetRange...offsetRange)
-                    )
-                    p.velocity = .zero
-                    p.spawnState = .active
-                    p.spawnProgress = 1.0
-                } else {
-                    // Place off-screen for small/medium bubbles
-                    let margin: CGFloat = p.radius + 8
-                    let side = Int.random(in: 0..<4)
-                    switch side {
-                    case 0: p.position = CGPoint(x: CGFloat.random(in: margin...(size.width - margin)), y: -margin)
-                    case 1: p.position = CGPoint(x: size.width + margin, y: CGFloat.random(in: margin...(size.height - margin)))
-                    case 2: p.position = CGPoint(x: CGFloat.random(in: margin...(size.width - margin)), y: size.height + margin)
-                    default: p.position = CGPoint(x: -margin, y: CGFloat.random(in: margin...(size.height - margin)))
-                    }
-                    
-                    let ddx = cx - p.position.x, ddy = cy - p.position.y
-                    let d   = max(sqrt(ddx * ddx + ddy * ddy), 1)
-                    p.velocity = CGVector(dx: ddx / d * 1.5, dy: ddy / d * 1.5)
-                    p.spawnState = .spawning
-                    p.spawnProgress = 0.0
-                }
-                initialParticles.append(p)
-            }
-            
-            self.particles = initialParticles
-            
-            // Run 5 invisible stabilization ticks to resolve initial overlaps and rest points
-            for _ in 0..<5 {
-                self.tick(date: Date())
-            }
-            
-            // Mark layout as ready
-            self.isLayoutReady = true
-        } else {
-            // Subsequent additions
-            spawnTask = Task { @MainActor in
-                for var p in added {
-                    guard !Task.isCancelled else { break }
-
-                    let margin: CGFloat = p.radius + 8
-                    let side = Int.random(in: 0..<4)
-                    switch side {
-                    case 0: p.position = CGPoint(x: CGFloat.random(in: margin...(size.width - margin)), y: -margin)
-                    case 1: p.position = CGPoint(x: size.width + margin, y: CGFloat.random(in: margin...(size.height - margin)))
-                    case 2: p.position = CGPoint(x: CGFloat.random(in: margin...(size.width - margin)), y: size.height + margin)
-                    default: p.position = CGPoint(x: -margin, y: CGFloat.random(in: margin...(size.height - margin)))
-                    }
-
-                    let ddx = cx - p.position.x, ddy = cy - p.position.y
-                    let d   = max(sqrt(ddx * ddx + ddy * ddy), 1)
-                    p.velocity = CGVector(dx: ddx / d * 1.5, dy: ddy / d * 1.5)
-                    
-                    p.spawnState = .spawning
-                    p.spawnProgress = 0.0
-
-                    self.particles.append(p)
-                    try? await Task.sleep(nanoseconds: 40_000_000) // 40ms stagger for premium fast cascade
-                }
-            }
-        }
-    }
-
-    func prepareForExpansion(clusterId: String, position: CGPoint, velocity: CGVector, symbols: [String]) {
-        for sym in symbols {
-            expandedClusterPositions[sym] = (position, velocity)
-        }
-    }
-
-    func updateSize(_ size: CGSize) { canvasSize = size }
-
-
-    func drag(id: String, to point: CGPoint) {
-        guard let i = particles.firstIndex(where: { $0.id == id }) else { return }
-        particles[i].position = point
-        particles[i].velocity = .zero
-        particles[i].spawnState = .active
-        particles[i].spawnProgress = 1.0
-        tickCount = 0
-    }
-
-    // MARK: - Rematerialise (unpop restore)
-
-    /// Inserts a single bubble at a safe screen-edge position with a soft fade-in animation.
-    /// The bubble enters with near-zero velocity and integrates naturally into the simulation.
-    func rematerializeParticle(_ p: BubbleParticle) {
-        // Don't add if already present
-        guard !particles.contains(where: { $0.id == p.id }) else { return }
-
-        var spawned = p
-        let size    = canvasSize
-        let margin  = p.radius + 8
-
-        // Spawn at the nearest canvas edge so it drifts into frame organically
-        let edges: [CGPoint] = [
-            CGPoint(x: CGFloat.random(in: margin...(size.width - margin)), y: -margin),
-            CGPoint(x: size.width + margin, y: CGFloat.random(in: margin...(size.height - margin)))
-        ]
-        spawned.position = edges[Int.random(in: 0..<edges.count)]
-
-        // Very gentle inward nudge
-        let cx  = size.width / 2, cy = size.height / 2
-        let ddx = cx - spawned.position.x
-        let ddy = cy - spawned.position.y
-        let d   = max(hypot(ddx, ddy), 1)
-        spawned.velocity = CGVector(dx: ddx / d * 0.6, dy: ddy / d * 0.6)
-
-        // Set spawn properties for materialization & fly-in
-        spawned.spawnState = .spawning
-        spawned.spawnProgress = 0.0
-
-        particles.append(spawned)
-    }
-
-    // MARK: - Bubble Pop
-
-    func popBubble(id: String) {
-        guard let idx = particles.firstIndex(where: { $0.id == id }) else { return }
-        let p      = particles[idx]
-        
-        let popColor: Color
-        if p.isWatchlist {
-            popColor = Color(hex: "#6366f1")
-        } else if p.gain > 0 {
-            popColor = Color.jade
-        } else if p.gain < 0 {
-            popColor = Color.crimson
-        } else {
-            popColor = Color.gray
-        }
-        
-        let count  = 14
-        var parts: [PopParticle] = []
-
-        for i in 0..<count {
-            let angle = (Double(i) / Double(count)) * .pi * 2 + Double.random(in: -0.25...0.25)
-            let speed = CGFloat.random(in: 1.8...5.0)
-            parts.append(PopParticle(
-                x:  p.position.x,
-                y:  p.position.y,
-                vx: CGFloat(cos(angle)) * speed,
-                vy: CGFloat(sin(angle)) * speed,
-                opacity: 1.0,
-                radius:  CGFloat.random(in: p.radius * 0.07...p.radius * 0.18)
-            ))
-        }
-
-        pops.append(BubblePop(
-            baseColor:   popColor,
-            cx:          p.position.x,
-            cy:          p.position.y,
-            mainRadius:  p.radius,
-            mainOpacity: 1.0,
-            particles:   parts
-        ))
-
-        particles.remove(at: idx)
-        tickCount = 0 // trigger soft re-balance
-    }
-
-    // MARK: - Tick
-
-    func tick(date: Date) {
-        tickCount += 1
-
-        // ── 1. Pop animations ─────────────────────────────────────────────
-        for i in pops.indices {
-            pops[i].tick += 1
-            let t = Double(pops[i].tick) / Double(BubblePop.maxTicks)
-
-            pops[i].mainOpacity = max(0, 1.0 - t * 2.0)
-            pops[i].mainRadius *= 1.012  // slight expansion while fading
-
-            for j in pops[i].particles.indices {
-                pops[i].particles[j].x  += pops[i].particles[j].vx
-                pops[i].particles[j].y  += pops[i].particles[j].vy
-                pops[i].particles[j].vx *= 0.90   // air friction
-                pops[i].particles[j].vy *= 0.90
-                pops[i].particles[j].vy += 0.10   // slight gravity pull
-                pops[i].particles[j].opacity  = max(0, 1.0 - t * 1.4)
-                pops[i].particles[j].radius   = max(0.5, pops[i].particles[j].radius * 0.97)
-            }
-        }
-        pops.removeAll { $0.tick >= BubblePop.maxTicks }
-
-        // ── 1b. Merging particles transition ──────────────────────────────
-        for i in mergingParticles.indices {
-            let dx = mergingParticles[i].targetPosition.x - mergingParticles[i].position.x
-            let dy = mergingParticles[i].targetPosition.y - mergingParticles[i].position.y
-            
-            mergingParticles[i].position.x += dx * 0.09
-            mergingParticles[i].position.y += dy * 0.09
-            
-            mergingParticles[i].opacity = max(0, mergingParticles[i].opacity - 0.03)
-            mergingParticles[i].radius = max(0.5, mergingParticles[i].radius * 0.94)
-        }
-        mergingParticles.removeAll { $0.opacity <= 0.01 }
-
-        // ── 1c. Temporary Expansion preview transition ───────────────────
-        if isTempExpanded {
-            expansionProgress = min(1.0, expansionProgress + 0.04)
-        } else {
-            expansionProgress = max(0.0, expansionProgress - 0.04)
-        }
-        
-        if expansionProgress > 0 && !tempChildParticles.isEmpty {
-            if let centerParticle = particles.first(where: { $0.id == expandedClusterID }) {
-                let count = tempChildParticles.count
-                for i in 0..<count {
-                    let angle = Double(i) * (2.0 * .pi / Double(count)) + tickCount * 0.003
-                    let targetDist = centerParticle.radius + tempChildParticles[i].radius + 18.0
-                    let currentDist = targetDist * expansionProgress
-                    tempChildParticles[i].currentPosition = CGPoint(
-                        x: centerParticle.position.x + cos(angle) * currentDist,
-                        y: centerParticle.position.y + sin(angle) * currentDist
-                    )
-                }
-            }
-        } else if expansionProgress <= 0 {
-            tempChildParticles.removeAll()
-            expandedClusterID = nil
-        }
-
-        // ── 2. Bubble physics ─────────────────────────────────────────────
-        guard !particles.isEmpty else {
-            return
-        }
-
-        let cx        = canvasSize.width  / 2
-        let cy        = canvasSize.height / 2
-        let decayBase = max(0.0, 1.0 - tickCount * 0.003)  // decays in ~333 ticks (~5.5s)
-        var pts       = particles
-
-        // 2a. Advance spawn progress for all particles
-        let spawnStep = 1.0 / 60.0
-        for i in pts.indices {
-            if pts[i].spawnState == .spawning || pts[i].spawnState == .settling {
-                let step = pts[i].radius >= 55.0 ? (1.0 / 36.0) : spawnStep
-                pts[i].spawnProgress = min(1.0, pts[i].spawnProgress + step)
-                if pts[i].spawnProgress >= 1.0 {
-                    pts[i].spawnState = .active
-                } else if pts[i].spawnProgress >= 0.4 {
-                    pts[i].spawnState = .settling
-                }
-            }
-        }
-
-        // 2b. Gravity + organic drift + damping
-        for i in pts.indices {
-            let ddx  = cx - pts[i].position.x
-            let ddy  = cy - pts[i].position.y
-            let seed = CGFloat(i) * 1.7
-
-            let dynamicDrift = driftAmplitude * CGFloat(decayBase)
-            let driftX = sin(tickCount * 0.016 + seed) * dynamicDrift
-            let driftY = cos(tickCount * 0.011 + seed + 1.2) * dynamicDrift
-
-            // Idle drift keeps bubbles alive even after decay
-            let idleX = sin(tickCount * 0.005 + seed * 2) * idleDrift
-            let idleY = cos(tickCount * 0.004 + seed * 2 + 0.5) * idleDrift
-
-            // Adjust gravity and damping based on spawnState
-            let currentGravity: CGFloat
-            let currentDamping: CGFloat
-            
-            switch pts[i].spawnState {
-            case .spawning:
-                currentGravity = 0.014 // Stronger attraction pull to fly in fast
-                currentDamping = 0.94
-            case .settling:
-                currentGravity = gravity
-                currentDamping = 0.86 // Increased damping for rapid settling
-            case .active:
-                currentGravity = gravity
-                currentDamping = damping
-            }
-
-            pts[i].velocity.dx = (pts[i].velocity.dx + ddx * currentGravity + driftX + idleX) * currentDamping
-            pts[i].velocity.dy = (pts[i].velocity.dy + ddy * currentGravity + driftY + idleY) * currentDamping
-            
-            // Limit max velocity during spawning state
-            if pts[i].spawnState == .spawning {
-                let maxSpawningSpeed: CGFloat = 5.0
-                let speed = sqrt(pts[i].velocity.dx * pts[i].velocity.dx + pts[i].velocity.dy * pts[i].velocity.dy)
-                if speed > maxSpawningSpeed {
-                    pts[i].velocity.dx = (pts[i].velocity.dx / speed) * maxSpawningSpeed
-                    pts[i].velocity.dy = (pts[i].velocity.dy / speed) * maxSpawningSpeed
-                }
-            }
-
-            pts[i].position.x += pts[i].velocity.dx
-            pts[i].position.y += pts[i].velocity.dy
-        }
-
-        // 2c. Correlation-driven inter-particle forces
-        //     Positive r  (> 0.4) → Hooke spring attraction
-        //     Negative r  (< 0.0) → inverse-square repulsion
-        //     F = α · r_xy · (d − d0)
-        if !correlationMatrix.isEmpty {
-            for i in 0 ..< pts.count {
-                guard !pts[i].isWatchlist else { continue }
-                for j in (i + 1) ..< pts.count {
-                    guard !pts[j].isWatchlist else { continue }
-
-                    let pair = AssetPair(pts[i].symbol, pts[j].symbol)
-                    guard let r = correlationMatrix[pair] else { continue }
-
-                    // Only act on meaningful correlation bands
-                    guard r > 0.4 || r < 0.0 else { continue }
-
-                    let ddx  = pts[j].position.x - pts[i].position.x
-                    let ddy  = pts[j].position.y - pts[i].position.y
-                    let dist = max(sqrt(ddx * ddx + ddy * ddy), 1)
-                    let nx   = ddx / dist
-                    let ny   = ddy / dist
-
-                    // d0 = sum of radii (natural resting distance)
-                    let d0 = pts[i].radius + pts[j].radius
-
-                    // F_interaction = α · r_xy · (d − d0)
-                    let force = correlationAlpha * CGFloat(r) * (dist - d0)
-
-                    // Attraction: push both particles toward each other
-                    // Repulsion: r < 0 makes force negative → pushes apart
-                    pts[i].velocity.dx += force * nx
-                    pts[i].velocity.dy += force * ny
-                    pts[j].velocity.dx -= force * nx
-                    pts[j].velocity.dy -= force * ny
-                }
-            }
-        }
-
-        // 2d. Inelastic collisions with full separation
-        for i in 0..<pts.count {
-            for j in (i + 1)..<pts.count {
-                let ddx     = pts[j].position.x - pts[i].position.x
-                let ddy     = pts[j].position.y - pts[i].position.y
-                let minDist = (pts[i].radius + pts[j].radius) * repulsionPad
-                let dist    = sqrt(ddx * ddx + ddy * ddy)
-                guard dist < minDist, dist > 0 else { continue }
-
-                // Full overlap removal
-                var overlap = (minDist - dist) / 2.0
-                let nx = ddx / dist, ny = ddy / dist
-
-                // If either is spawning, reduce the collision force
-                var restitution = collisionRestitution
-                if pts[i].spawnState == .spawning || pts[j].spawnState == .spawning {
-                    overlap *= 0.15
-                    restitution *= 0.1
-                }
-
-                pts[i].position.x -= nx * overlap
-                pts[i].position.y -= ny * overlap
-                pts[j].position.x += nx * overlap
-                pts[j].position.y += ny * overlap
-
-                // Absorb relative velocity (very inelastic)
-                let dvx = pts[j].velocity.dx - pts[i].velocity.dx
-                let dvy = pts[j].velocity.dy - pts[i].velocity.dy
-                let dot = dvx * nx + dvy * ny
-                if dot < 0 {
-                    let imp = dot * restitution
-                    pts[i].velocity.dx += imp * nx
-                    pts[i].velocity.dy += imp * ny
-                    pts[j].velocity.dx -= imp * nx
-                    pts[j].velocity.dy -= imp * ny
-                }
-            }
-        }
-
-        // 2e. Soft boundary clamping
-        for i in pts.indices {
-            // Skip boundary clamping during spawning state so they can fly in from off-screen
-            guard pts[i].spawnState != .spawning else { continue }
-
-            let r = pts[i].radius
-            if pts[i].position.x < r {
-                pts[i].position.x = r
-                pts[i].velocity.dx = abs(pts[i].velocity.dx) * boundaryBounce
-            }
-            if pts[i].position.x > canvasSize.width - r {
-                pts[i].position.x = canvasSize.width - r
-                pts[i].velocity.dx = -abs(pts[i].velocity.dx) * boundaryBounce
-            }
-            if pts[i].position.y < r {
-                pts[i].position.y = r
-                pts[i].velocity.dy = abs(pts[i].velocity.dy) * boundaryBounce
-            }
-            if pts[i].position.y > canvasSize.height - r {
-                pts[i].position.y = canvasSize.height - r
-                pts[i].velocity.dy = -abs(pts[i].velocity.dy) * boundaryBounce
-            }
-        }
-
-        particles = pts
-
-        // No stop condition needed when driven by TimelineView
-    }
-
-    deinit {
-        spawnTask?.cancel()
-    }
-}
 
 // MARK: - Bubble Physics View
 
@@ -649,198 +39,18 @@ struct BubblePhysicsView: View {
                 
                 TimelineView(.animation) { timeline in
                     Canvas { ctx, size in
-                        engine.tick(date: timeline.date)
-                        
-                        // Draw connection lines for temporary expanded clusters
-                        if engine.expansionProgress > 0, let centerId = engine.expandedClusterID,
-                           let centerParticle = engine.particles.first(where: { $0.id == centerId }) {
-                            for child in engine.tempChildParticles {
-                                var path = Path()
-                                path.move(to: centerParticle.position)
-                                path.addLine(to: child.currentPosition)
-                                ctx.stroke(path, with: .color(Color.jade.opacity(0.18 * engine.expansionProgress)), style: StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
-                            }
-                        }
-                        
-                        // Draw active bubbles
-                        for p in engine.particles {
-                            if p.id == engine.expandedClusterID {
-                                var drawCtx = ctx
-                                drawCtx.opacity = max(0.05, 1.0 - engine.expansionProgress)
-                                drawSoftBubble(p, ctx: &drawCtx)
-                            } else {
-                                drawSoftBubble(p, ctx: &ctx)
-                            }
-                        }
-                        
-                        // Draw temporary child preview bubbles
-                        if engine.expansionProgress > 0 {
-                            for child in engine.tempChildParticles {
-                                let tempParticle = BubbleParticle(
-                                    id: child.id,
-                                    symbol: child.symbol,
-                                    gain: child.gain,
-                                    radius: child.radius * engine.expansionProgress,
-                                    position: child.currentPosition,
-                                    velocity: .zero,
-                                    isWatchlist: child.isWatchlist
-                                )
-                                var drawCtx = ctx
-                                drawCtx.opacity = engine.expansionProgress
-                                drawSoftBubble(tempParticle, ctx: &drawCtx)
-                            }
-                        }
-                        
-                        // Draw merging bubbles
-                        for mp in engine.mergingParticles {
-                            let tempParticle = BubbleParticle(
-                                id: mp.id,
-                                symbol: mp.symbol,
-                                gain: 0.0,
-                                radius: mp.radius,
-                                position: mp.position,
-                                velocity: .zero,
-                                isWatchlist: false
-                            )
-                            var drawCtx = ctx
-                            drawCtx.opacity = mp.opacity
-                            drawSoftBubble(tempParticle, ctx: &drawCtx)
-                        }
-                        
-                        // Draw pop animations on top
-                        for pop in engine.pops {
-                            drawPop(pop, ctx: &ctx)
-                        }
+                        drawBubbles(date: timeline.date, ctx: &ctx)
                     }
                     .gesture(
                         DragGesture(minimumDistance: 4)
-                            .onChanged { val in
-                                if dragID == nil {
-                                    dragID = engine.particles
-                                        .first { distPt($0.position, val.startLocation) < $0.radius }?.id
-                                }
-                                if let id = dragID { engine.drag(id: id, to: val.location) }
-                            }
-                            .onEnded { _ in dragID = nil }
+                            .onChanged(handleDragChanged)
+                            .onEnded(handleDragEnded)
                     )
-                    .onTapGesture { loc in
-                        guard dragID == nil else { return }
-                        
-                        // Handle Selection Mode taps
-                        if vm.isBubbleSelectionModeActive {
-                            if let tapped = engine.particles.first(where: { distPt($0.position, loc) < $0.radius }) {
-                                if !tapped.isCluster && !tapped.isWatchlist {
-                                    vm.toggleBubbleSelection(for: tapped.symbol)
-                                }
-                            } else {
-                                // Tap empty space to exit selection mode
-                                vm.toggleBubbleSelectionMode()
-                            }
-                            return
-                        }
-                        
-                        // 1. If currently expanded, handle expanded taps
-                        if engine.isTempExpanded, let centerId = engine.expandedClusterID {
-                            // Check if tapped a child bubble
-                            if let tappedChild = engine.tempChildParticles.first(where: { distPt($0.currentPosition, loc) < $0.radius }) {
-                                haptic(.medium)
-                                if let inv = vm.investments.first(where: { $0.id == tappedChild.id }) {
-                                    selectedInvestment = inv
-                                }
-                                return
-                            }
-                            
-                            // Check if tapped the center cluster bubble
-                            if let centerParticle = engine.particles.first(where: { $0.id == centerId }),
-                               distPt(centerParticle.position, loc) < centerParticle.radius {
-                                haptic(.medium)
-                                // Tap center of expanded cluster -> open ClusterAssetsSheet showing options
-                                if let cluster = vm.bubbleClusters.first(where: { $0.id.uuidString == centerId }) {
-                                    let particle = BubbleParticle(
-                                        id: cluster.id.uuidString,
-                                        symbol: cluster.name,
-                                        gain: centerParticle.gain,
-                                        radius: centerParticle.radius,
-                                        position: centerParticle.position,
-                                        velocity: .zero,
-                                        isWatchlist: false,
-                                        isCluster: true,
-                                        clusterSymbols: cluster.symbols
-                                    )
-                                    selectedClusterParticle = particle
-                                    showClusterAssetsSheet = true
-                                }
-                                return
-                            }
-                            
-                            // Tapped background: collapse back
-                            haptic(.light)
-                            engine.isTempExpanded = false
-                            return
-                        }
-                        
-                        // 2. Standard (collapsed) state taps
-                        if let tapped = engine.particles.first(where: { distPt($0.position, loc) < $0.radius }) {
-                            haptic(.medium)
-                            if tapped.isCluster {
-                                // Tap collapsed cluster -> temporary expand in place
-                                haptic(.rigid)
-                                var tempChildren: [TempChildParticle] = []
-                                let activeInvestments = vm.investments.filter { !$0.isWatchlist }
-                                let totalActiveVal = activeInvestments.reduce(0.0) {
-                                    $0 + $1.shares * vm.marketService.getCurrentPrice(for: $1.symbol)
-                                }
-                                let maxR = min(geo.size.width, geo.size.height) * 0.22
-                                let minR: CGFloat = 28
-                                
-                                for sym in tapped.clusterSymbols {
-                                    if let inv = vm.investments.first(where: { $0.symbol == sym }) {
-                                        let price = vm.marketService.getCurrentPrice(for: inv.symbol)
-                                        let val = inv.shares * price
-                                        let weight = totalActiveVal > 0 ? (val / totalActiveVal) : 0.0
-                                        let childR = minR + (maxR - minR) * CGFloat(weight)
-                                        let gain = inv.totalCost > 0 ? ((val - inv.totalCost) / inv.totalCost) * 100 : 0.0
-                                        
-                                        tempChildren.append(TempChildParticle(
-                                            id: inv.id,
-                                            symbol: inv.symbol,
-                                            name: inv.name,
-                                            gain: gain,
-                                            radius: childR,
-                                            isWatchlist: false
-                                        ))
-                                    }
-                                }
-                                
-                                engine.tempChildParticles = tempChildren
-                                engine.expandedClusterID = tapped.id
-                                engine.isTempExpanded = true
-                            } else if let inv = vm.investments.first(where: { $0.id == tapped.id }) {
-                                selectedInvestment = inv
-                            }
-                        }
-                    }
+                    .onTapGesture { handleTap(at: $0, canvasSize: geo.size) }
                     .simultaneousGesture(
                         LongPressGesture(minimumDuration: 0.5)
                             .sequenced(before: DragGesture(minimumDistance: 0))
-                            .onEnded { value in
-                                switch value {
-                                case .second(true, let drag):
-                                    if let loc = drag?.startLocation {
-                                        if let tapped = engine.particles.first(where: { distPt($0.position, loc) < $0.radius }) {
-                                            if !tapped.isCluster && !tapped.isWatchlist {
-                                                if !vm.isBubbleSelectionModeActive {
-                                                    vm.toggleBubbleSelectionMode()
-                                                }
-                                                if !vm.selectedBubbleSymbols.contains(tapped.symbol) {
-                                                    vm.toggleBubbleSelection(for: tapped.symbol)
-                                                }
-                                            }
-                                        }
-                                    }
-                                default: break
-                                }
-                            }
+                            .onEnded(handleLongPressEnded)
                     )
                 } // End TimelineView
                 .opacity(engine.isLayoutReady ? 1.0 : 0.0)
@@ -936,6 +146,221 @@ struct BubblePhysicsView: View {
                     .environmentObject(lm)
             }
         }
+    }
+
+    // MARK: - Canvas Drawing
+
+    private func drawBubbles(date: Date, ctx: inout GraphicsContext) {
+        engine.tick(date: date)
+        drawExpandedClusterConnections(ctx: &ctx)
+        drawActiveBubbles(ctx: &ctx)
+        drawTemporaryChildren(ctx: &ctx)
+        drawMergingBubbles(ctx: &ctx)
+
+        for pop in engine.pops {
+            drawPop(pop, ctx: &ctx)
+        }
+    }
+
+    private func drawExpandedClusterConnections(ctx: inout GraphicsContext) {
+        guard engine.expansionProgress > 0,
+              let centerId = engine.expandedClusterID,
+              let centerParticle = engine.particles.first(where: { $0.id == centerId }) else {
+            return
+        }
+
+        for child in engine.tempChildParticles {
+            var path = Path()
+            path.move(to: centerParticle.position)
+            path.addLine(to: child.currentPosition)
+            ctx.stroke(
+                path,
+                with: .color(Color.jade.opacity(0.18 * engine.expansionProgress)),
+                style: StrokeStyle(lineWidth: 1.5, dash: [4, 4])
+            )
+        }
+    }
+
+    private func drawActiveBubbles(ctx: inout GraphicsContext) {
+        for particle in engine.particles {
+            if particle.id == engine.expandedClusterID {
+                var drawCtx = ctx
+                drawCtx.opacity = max(0.05, 1.0 - engine.expansionProgress)
+                drawSoftBubble(particle, ctx: &drawCtx)
+            } else {
+                drawSoftBubble(particle, ctx: &ctx)
+            }
+        }
+    }
+
+    private func drawTemporaryChildren(ctx: inout GraphicsContext) {
+        guard engine.expansionProgress > 0 else { return }
+
+        for child in engine.tempChildParticles {
+            let tempParticle = BubbleParticle(
+                id: child.id,
+                symbol: child.symbol,
+                gain: child.gain,
+                radius: child.radius * engine.expansionProgress,
+                position: child.currentPosition,
+                velocity: .zero,
+                isWatchlist: child.isWatchlist
+            )
+            var drawCtx = ctx
+            drawCtx.opacity = engine.expansionProgress
+            drawSoftBubble(tempParticle, ctx: &drawCtx)
+        }
+    }
+
+    private func drawMergingBubbles(ctx: inout GraphicsContext) {
+        for particle in engine.mergingParticles {
+            let tempParticle = BubbleParticle(
+                id: particle.id,
+                symbol: particle.symbol,
+                gain: 0.0,
+                radius: particle.radius,
+                position: particle.position,
+                velocity: .zero,
+                isWatchlist: false
+            )
+            var drawCtx = ctx
+            drawCtx.opacity = particle.opacity
+            drawSoftBubble(tempParticle, ctx: &drawCtx)
+        }
+    }
+
+    // MARK: - Gestures
+
+    private func handleDragChanged(_ value: DragGesture.Value) {
+        if dragID == nil {
+            dragID = engine.particles.first { distPt($0.position, value.startLocation) < $0.radius }?.id
+        }
+        if let id = dragID {
+            engine.drag(id: id, to: value.location)
+        }
+    }
+
+    private func handleDragEnded(_ value: DragGesture.Value) {
+        dragID = nil
+    }
+
+    private func handleLongPressEnded(_ value: SequenceGesture<LongPressGesture, DragGesture>.Value) {
+        guard case .second(true, let drag) = value,
+              let loc = drag?.startLocation,
+              let tapped = engine.particles.first(where: { distPt($0.position, loc) < $0.radius }),
+              !tapped.isCluster,
+              !tapped.isWatchlist else {
+            return
+        }
+
+        if !vm.isBubbleSelectionModeActive {
+            vm.toggleBubbleSelectionMode()
+        }
+        if !vm.selectedBubbleSymbols.contains(tapped.symbol) {
+            vm.toggleBubbleSelection(for: tapped.symbol)
+        }
+    }
+
+    private func handleTap(at location: CGPoint, canvasSize: CGSize) {
+        guard dragID == nil else { return }
+
+        if vm.isBubbleSelectionModeActive {
+            handleSelectionModeTap(at: location)
+            return
+        }
+
+        if engine.isTempExpanded {
+            handleExpandedTap(at: location)
+            return
+        }
+
+        guard let tapped = engine.particles.first(where: { distPt($0.position, location) < $0.radius }) else { return }
+        haptic(.medium)
+
+        if tapped.isCluster {
+            haptic(.rigid)
+            expandClusterPreview(tapped, canvasSize: canvasSize)
+        } else if let inv = vm.investments.first(where: { $0.id == tapped.id }) {
+            selectedInvestment = inv
+        }
+    }
+
+    private func handleSelectionModeTap(at location: CGPoint) {
+        if let tapped = engine.particles.first(where: { distPt($0.position, location) < $0.radius }) {
+            if !tapped.isCluster && !tapped.isWatchlist {
+                vm.toggleBubbleSelection(for: tapped.symbol)
+            }
+        } else {
+            vm.toggleBubbleSelectionMode()
+        }
+    }
+
+    private func handleExpandedTap(at location: CGPoint) {
+        if let tappedChild = engine.tempChildParticles.first(where: { distPt($0.currentPosition, location) < $0.radius }) {
+            haptic(.medium)
+            selectedInvestment = vm.investments.first(where: { $0.id == tappedChild.id })
+            return
+        }
+
+        guard let centerId = engine.expandedClusterID else { return }
+
+        if let centerParticle = engine.particles.first(where: { $0.id == centerId }),
+           distPt(centerParticle.position, location) < centerParticle.radius {
+            haptic(.medium)
+            presentClusterAssetsSheet(centerId: centerId, centerParticle: centerParticle)
+            return
+        }
+
+        haptic(.light)
+        engine.isTempExpanded = false
+    }
+
+    private func presentClusterAssetsSheet(centerId: String, centerParticle: BubbleParticle) {
+        guard let cluster = vm.bubbleClusters.first(where: { $0.id.uuidString == centerId }) else { return }
+        selectedClusterParticle = BubbleParticle(
+            id: cluster.id.uuidString,
+            symbol: cluster.name,
+            gain: centerParticle.gain,
+            radius: centerParticle.radius,
+            position: centerParticle.position,
+            velocity: .zero,
+            isWatchlist: false,
+            isCluster: true,
+            clusterSymbols: cluster.symbols
+        )
+        showClusterAssetsSheet = true
+    }
+
+    private func expandClusterPreview(_ tapped: BubbleParticle, canvasSize: CGSize) {
+        var tempChildren: [TempChildParticle] = []
+        let activeInvestments = vm.investments.filter { !$0.isWatchlist }
+        let totalActiveVal = activeInvestments.reduce(0.0) {
+            $0 + vm.selectedCurrencyValue(for: $1)
+        }
+        let maxR = min(canvasSize.width, canvasSize.height) * 0.22
+        let minR: CGFloat = 28
+
+        for symbol in tapped.clusterSymbols {
+            guard let inv = vm.investments.first(where: { $0.symbol == symbol }) else { continue }
+            let value = vm.selectedCurrencyValue(for: inv)
+            let cost = vm.selectedCurrencyCost(for: inv)
+            let weight = totalActiveVal > 0 ? value / totalActiveVal : 0.0
+            let childR = minR + (maxR - minR) * CGFloat(weight)
+            let gain = cost > 0 ? ((value - cost) / cost) * 100 : 0.0
+
+            tempChildren.append(TempChildParticle(
+                id: inv.id,
+                symbol: inv.symbol,
+                name: inv.name,
+                gain: gain,
+                radius: childR,
+                isWatchlist: false
+            ))
+        }
+
+        engine.tempChildParticles = tempChildren
+        engine.expandedClusterID = tapped.id
+        engine.isTempExpanded = true
     }
 
     // MARK: - Extracted Subviews
@@ -1276,128 +701,5 @@ struct BubblePhysicsView: View {
     private func distPt(_ a: CGPoint, _ b: CGPoint) -> CGFloat {
         let dx = a.x - b.x, dy = a.y - b.y
         return sqrt(dx * dx + dy * dy)
-    }
-}
-
-// MARK: - Shimmer Loading View
-
-struct ShimmerLoadingView: View {
-    @State private var pulse = false
-    
-    var body: some View {
-        ZStack {
-            Color.bgDeep.ignoresSafeArea()
-            
-            // Soft circular glow at the center representing the bubble cluster
-            Circle()
-                .fill(Color.jade.opacity(0.12))
-                .frame(width: 140, height: 140)
-                .blur(radius: 40)
-                .scaleEffect(pulse ? 1.15 : 0.85)
-                .opacity(pulse ? 0.8 : 0.4)
-                .onAppear {
-                    withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
-                        pulse = true
-                    }
-                }
-        }
-    }
-}
-
-// MARK: - Cluster Assets Sheet (Bubble Merge)
-
-struct ClusterAssetsSheet: View {
-    let particle: BubbleParticle
-    @ObservedObject var vm: PortfolioViewModel
-    @EnvironmentObject private var lm: AppLanguageManager
-    @Environment(\.dismiss) private var dismiss
-    
-    var body: some View {
-        NavigationStack {
-            ZStack {
-                Color.bgDeep.ignoresSafeArea()
-                
-                ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text(lm.t("bubbles.mergedBubblesTitle"))
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(Color.textMuted)
-                            .tracking(1.2)
-                            .padding(.horizontal, 4)
-                        
-                        let clusterInvestments = vm.investments.filter { particle.clusterSymbols.contains($0.symbol) && !$0.isWatchlist }
-                        
-                        VStack(spacing: 12) {
-                            ForEach(clusterInvestments) { inv in
-                                HStack(spacing: 12) {
-                                    VStack(alignment: .leading, spacing: 3) {
-                                        Text(inv.symbol)
-                                            .font(.system(size: 15, weight: .bold))
-                                            .foregroundStyle(Color.textPrimary)
-                                        Text(inv.name)
-                                            .font(.system(size: 11))
-                                            .foregroundStyle(Color.textMuted)
-                                    }
-                                    
-                                    Spacer()
-                                    
-                                    let price = vm.marketService.getCurrentPrice(for: inv.symbol)
-                                    let val = inv.shares * price
-                                    let gain = val - inv.totalCost
-                                    let gainPct = inv.totalCost > 0 ? (gain / inv.totalCost) * 100 : 0
-                                    
-                                    VStack(alignment: .trailing, spacing: 3) {
-                                        Text(CurrencyService.shared.format(value: val, from: inv.nativeCurrency))
-                                            .font(.system(size: 14, weight: .bold, design: .monospaced))
-                                            .foregroundStyle(Color.textPrimary)
-                                        Text(String(format: "%@%.1f%%", gainPct >= 0 ? "+" : "", gainPct))
-                                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                                            .foregroundStyle(gainPct.gainColor)
-                                    }
-                                }
-                                .padding(.vertical, 8)
-                                .padding(.horizontal, 12)
-                                .background(Color.white.opacity(0.04))
-                                .cornerRadius(8)
-                            }
-                        }
-                        .cardStyle()
-                    }
-                    .padding(20)
-                }
-            }
-            .navigationTitle(particle.symbol)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(lm.t("common.fertig")) { dismiss() }
-                        .foregroundStyle(Color.jade)
-                }
-            }
-            .safeAreaInset(edge: .bottom) {
-                if let clusterId = UUID(uuidString: particle.id) {
-                    Button(role: .destructive) {
-                        haptic(.rigid)
-                        vm.expandCluster(id: clusterId)
-                        dismiss()
-                    } label: {
-                        HStack {
-                            Image(systemName: "circle.grid.cross.left.filled")
-                            Text(lm.t("bubbles.dissolveCluster"))
-                        }
-                        .font(.system(size: 15, weight: .bold))
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 50)
-                        .background(Color.red.opacity(0.15))
-                        .cornerRadius(12)
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.red.opacity(0.3), lineWidth: 1))
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 12)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-        .preferredColorScheme(.dark)
     }
 }

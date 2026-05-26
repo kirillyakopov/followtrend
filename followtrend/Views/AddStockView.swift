@@ -58,7 +58,8 @@ struct AddStockView: View {
             apiCurrency: .usd,
             brokerPrice: parsedBrokerPrice,
             brokerCurrency: brokerCurrency,
-            displayCurrency: cs.selectedCurrency
+            displayCurrency: cs.selectedCurrency,
+            currencyService: cs
         )
     }
 
