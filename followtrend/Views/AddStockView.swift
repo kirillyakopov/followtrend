@@ -460,6 +460,97 @@ struct AddStockView: View {
         .cardStyle()
     }
 
+    private var brokerIntegrationSection: some View {
+        sectionCard(title: "Broker Integration") {
+            Button {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                    showBrokerIntegration.toggle()
+                }
+                haptic()
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "building.columns.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Color.jade)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Align with broker")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(Color.textPrimary)
+                        Text("Optional: If your broker currently shows a different price than market APIs, followtrend can align values more closely.")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Color.textMuted)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(Color.textMuted)
+                        .rotationEffect(.degrees(showBrokerIntegration ? 90 : 0))
+                }
+            }
+            .buttonStyle(.plain)
+
+            if showBrokerIntegration {
+                Divider().background(Color.borderHair)
+
+                Picker("Broker Platform", selection: $brokerPlatform) {
+                    ForEach(brokerPlatforms, id: \.self) { platform in
+                        Text(platform).tag(platform)
+                    }
+                }
+                .pickerStyle(.menu)
+
+                Divider().background(Color.borderHair)
+
+                numberRow(label: "Current Broker Price", placeholder: "0.00", text: $brokerPriceText)
+
+                Divider().background(Color.borderHair)
+
+                Picker("Broker Currency", selection: $brokerCurrency) {
+                    ForEach(AppCurrency.allCases) { currency in
+                        Text(currency.rawValue).tag(currency)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                if let factor = brokerAdjustmentFactor {
+                    HStack {
+                        Text("Adjustment factor")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Color.textMuted)
+                        Spacer()
+                        Text(String(format: "%.4f", factor))
+                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(Color.textSecondary)
+                    }
+                } else if parsedBrokerPrice > 0 {
+                    Text("A current market API price is required before an adjustment factor can be saved.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color.textMuted)
+                }
+
+                if shouldShowBrokerWarning {
+                    brokerWarningView
+                }
+            }
+        }
+    }
+
+    private var brokerWarningView: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Color(hex: "#f59e0b"))
+            Text("The broker price differs significantly from market data. Please verify currency, exchange, or symbol.")
+                .font(.system(size: 12))
+                .foregroundStyle(Color.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(10)
+        .background(Color(hex: "#f59e0b").opacity(0.10))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+
     // MARK: - CTA Button
 
     private var addButton: some View {

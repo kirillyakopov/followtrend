@@ -89,6 +89,7 @@ struct Investment: Identifiable, Codable, Hashable {
         shares * displayPrice(apiPrice: apiPrice, mode: mode)
     }
 
+    @MainActor
     static func adjustmentFactor(
         apiPrice: Double,
         apiCurrency: AppCurrency,
@@ -104,6 +105,7 @@ struct Investment: Identifiable, Codable, Hashable {
         return brokerConverted / apiConverted
     }
 
+    @MainActor
     static func fxRate(
         from sourceCurrency: AppCurrency,
         to targetCurrency: AppCurrency,

@@ -486,6 +486,7 @@ final class PortfolioViewModel: ObservableObject {
 
         // Register with StockMarketService at buy price (will be overwritten on next price refresh)
         marketService.registerSymbol(symbol: sym, name: assetName, price: buyPrice)
+        refreshDefaultPriceSourceModeIfNeeded()
         recalculate()
 
         // Fetch live price for new position immediately
@@ -506,7 +507,6 @@ final class PortfolioViewModel: ObservableObject {
         
         // Auto-save
         PortfolioStorageService.shared.saveInvestments(investments)
-        refreshDefaultPriceSourceModeIfNeeded()
         Task { await triggerCorrelationUpdate() }
     }
 
@@ -534,6 +534,7 @@ final class PortfolioViewModel: ObservableObject {
             }
         }
         
+        refreshDefaultPriceSourceModeIfNeeded()
         recalculate()
         
         // Auto-save
@@ -643,7 +644,6 @@ final class PortfolioViewModel: ObservableObject {
         
         // Auto-save
         PortfolioStorageService.shared.saveInvestments(investments)
-        refreshDefaultPriceSourceModeIfNeeded()
         
         Task { await triggerCorrelationUpdate() }
     }

@@ -14,6 +14,8 @@ struct ChartView: View {
     let symbol:    String
     let coinId:    String?        // non-nil for crypto
     let isPositive: Bool
+    let priceAdjustmentFactor: Double?
+    let displayBrokerAdjustedChart: Bool
 
     @State private var chartState: ChartLoadState = .idle
     @State private var timeframe:  Timeframe = .oneMonth
@@ -177,14 +179,15 @@ struct ChartView: View {
                 } else {
                     points = try await MarketDataService.shared.fetchCandles(symbol: symbol, timeframe: timeframe)
                 }
+                let displayPoints = adjustedPoints(points)
                 guard !Task.isCancelled else { return }
                 
                 await MainActor.run {
                     withAnimation {
-                        if points.isEmpty {
+                        if displayPoints.isEmpty {
                             chartState = .error("No chart data available")
                         } else {
-                            chartState = .loaded(points)
+                            chartState = .loaded(displayPoints)
                         }
                     }
                 }
@@ -194,6 +197,25 @@ struct ChartView: View {
                     withAnimation { chartState = .error(error.localizedDescription) }
                 }
             }
+        }
+    }
+
+    private func adjustedPoints(_ points: [ChartPoint]) -> [ChartPoint] {
+        guard displayBrokerAdjustedChart,
+              let factor = priceAdjustmentFactor,
+              factor.isFinite,
+              factor > 0 else {
+            return points
+        }
+        return points.map { point in
+            ChartPoint(
+                timestamp: point.timestamp,
+                close: point.close * factor,
+                open: point.open.map { $0 * factor },
+                high: point.high.map { $0 * factor },
+                low: point.low.map { $0 * factor },
+                volume: point.volume
+            )
         }
     }
 

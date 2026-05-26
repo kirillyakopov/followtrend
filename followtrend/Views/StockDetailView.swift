@@ -33,10 +33,20 @@ final class StockDetailViewModel: ObservableObject {
         startAutoRefresh()
     }
 
-    var currentValue: Double { investment.shares * livePrice }
-    var gainLoss:     Double { currentValue - investment.totalCost }
-    var gainPercent:  Double {
-        investment.totalCost > 0 ? (gainLoss / investment.totalCost) * 100 : 0
+    func displayPrice(mode: PriceSourceMode) -> Double {
+        investment.displayPrice(apiPrice: livePrice, mode: mode)
+    }
+
+    func currentValue(mode: PriceSourceMode) -> Double {
+        investment.shares * displayPrice(mode: mode)
+    }
+
+    func gainLoss(mode: PriceSourceMode) -> Double {
+        currentValue(mode: mode) - investment.totalCost
+    }
+
+    func gainPercent(mode: PriceSourceMode) -> Double {
+        investment.totalCost > 0 ? (gainLoss(mode: mode) / investment.totalCost) * 100 : 0
     }
 
     func refresh() {
@@ -79,7 +89,8 @@ struct StockDetailView: View {
     /// Called when user taps "Pop Bubble" — only passed from BubblePhysicsView
     private var onPop: (() -> Void)?
     private var onBuy: ((Double, Double, String) -> Void)?
-    private var onEdit: ((Double, Double, String, String, String) -> Void)?
+    private var onEdit: ((Double, Double, String, String, String, BrokerAdjustmentDraft?, Bool) -> Void)?
+    private let priceSourceMode: PriceSourceMode
 
     @State private var showBuyInputs = false
     @State private var buySharesText = "1"
@@ -91,16 +102,18 @@ struct StockDetailView: View {
     init(
         investment: Investment,
         coinId:     String? = nil,
+        priceSourceMode: PriceSourceMode = .market,
         onDelete:   (() -> Void)? = nil,
         onPop:      (() -> Void)? = nil,
         onBuy:      ((Double, Double, String) -> Void)? = nil,
-        onEdit:     ((Double, Double, String, String, String) -> Void)? = nil
+        onEdit:     ((Double, Double, String, String, String, BrokerAdjustmentDraft?, Bool) -> Void)? = nil
     ) {
         _detailVM = StateObject(wrappedValue: StockDetailViewModel(investment: investment, coinId: coinId))
         self.onDelete = onDelete
         self.onPop    = onPop
         self.onBuy    = onBuy
         self.onEdit   = onEdit
+        self.priceSourceMode = priceSourceMode
     }
 
     private var inv: Investment { detailVM.investment }
@@ -120,7 +133,9 @@ struct StockDetailView: View {
                         ChartView(
                             symbol:     inv.symbol,
                             coinId:     detailVM.coinId,
-                            isPositive: inv.isWatchlist ? (detailVM.priceChange >= 0) : (detailVM.gainLoss >= 0)
+                            isPositive: inv.isWatchlist ? (detailVM.priceChange >= 0) : (detailVM.gainLoss(mode: priceSourceMode) >= 0),
+                            priceAdjustmentFactor: inv.priceAdjustmentFactor,
+                            displayBrokerAdjustedChart: priceSourceMode == .brokerAdjusted
                         )
                         .cardStyle()
 
@@ -158,8 +173,8 @@ struct StockDetailView: View {
                 }
             }
             .sheet(isPresented: $showEditSheet) {
-                EditPositionView(investment: inv) { shares, price, date, notes, tags in
-                    onEdit?(shares, price, date, notes, tags)
+                EditPositionView(investment: inv, currentApiPrice: detailVM.livePrice) { shares, price, date, notes, tags, brokerDraft, clearsBrokerAdjustment in
+                    onEdit?(shares, price, date, notes, tags, brokerDraft, clearsBrokerAdjustment)
                     showEditSheet = false
                 }
             }
@@ -188,7 +203,7 @@ struct StockDetailView: View {
                 .foregroundStyle(Color.textSecondary)
 
             HStack(alignment: .lastTextBaseline, spacing: 12) {
-                Text(CurrencyService.shared.format(value: detailVM.livePrice, from: inv.nativeCurrency))
+                Text(CurrencyService.shared.format(value: inv.isWatchlist ? detailVM.livePrice : detailVM.displayPrice(mode: priceSourceMode), from: inv.nativeCurrency))
                     .font(.system(size: 38, weight: .bold, design: .monospaced))
                     .foregroundStyle(Color.textPrimary)
                     .contentTransition(.numericText())
@@ -202,7 +217,7 @@ struct StockDetailView: View {
 
     @ViewBuilder
     private var dayChangeBadge: some View {
-        let pct = inv.isWatchlist ? detailVM.priceChange : detailVM.gainPercent
+        let pct = inv.isWatchlist ? detailVM.priceChange : detailVM.gainPercent(mode: priceSourceMode)
         HStack(spacing: 3) {
             Image(systemName: pct >= 0 ? "arrowtriangle.up.fill" : "arrowtriangle.down.fill")
                 .font(.system(size: 9))
@@ -404,16 +419,16 @@ struct StockDetailView: View {
 
                 HStack {
                     infoCell(lm.t("detail.aktuelle_wert"),
-                             value: CurrencyService.shared.format(value: detailVM.currentValue, from: inv.nativeCurrency),
+                             value: CurrencyService.shared.format(value: detailVM.currentValue(mode: priceSourceMode), from: inv.nativeCurrency),
                              color: .textPrimary)
                     Spacer()
                     infoCell(lm.t("detail.gewinn_verlust"),
                              value: String(format: "%@%@ (%@%.1f%%)",
-                                           detailVM.gainLoss >= 0 ? "+" : "",
-                                           CurrencyService.shared.format(value: abs(detailVM.gainLoss), from: inv.nativeCurrency),
-                                           detailVM.gainPercent >= 0 ? "+" : "",
-                                           detailVM.gainPercent),
-                             color: detailVM.gainLoss.gainColor)
+                                           detailVM.gainLoss(mode: priceSourceMode) >= 0 ? "+" : "",
+                                           CurrencyService.shared.format(value: abs(detailVM.gainLoss(mode: priceSourceMode)), from: inv.nativeCurrency),
+                                           detailVM.gainPercent(mode: priceSourceMode) >= 0 ? "+" : "",
+                                           detailVM.gainPercent(mode: priceSourceMode)),
+                             color: detailVM.gainLoss(mode: priceSourceMode).gainColor)
                 }
             }
         }
