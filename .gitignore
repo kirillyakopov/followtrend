@@ -1,0 +1,21 @@
+.DS_Store
+
+# Xcode build output
+Build/
+build/
+DerivedData/
+build_derived_data/
+*.xcresult
+
+# Logs
+*.log
+
+# SwiftPM/Xcode local state
+.build/
+Package.resolved
+xcuserdata/
+*.xcuserstate
+
+# Local scratch binaries
+/test
+/test2

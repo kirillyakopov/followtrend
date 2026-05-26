@@ -1,0 +1,320 @@
+{
+  "_meta": {
+    "displayName": "Deutsch",
+    "flag": "🇩🇪"
+  },
+  "tabs": {
+    "gesamt": "Gesamt",
+    "bubbles": "Bubbles",
+    "anlegen": "Anlegen"
+  },
+  "portfolio": {
+    "brokerage": "Brokerage",
+    "kosten": "Kosten",
+    "cash": "Cash",
+    "gesamtrendite": "Gesamtrendite",
+    "roi": "ROI",
+    "positionen": "Positionen",
+    "positionen_suchen": "Positionen suchen…",
+    "aktive_positionen": "AKTIVE POSITIONEN",
+    "ergebnisse": "ERGEBNISSE",
+    "seit_kauf": "Seit Kauf",
+    "keine_positionen": "Keine Positionen. Tippe 'Anlegen' zum Hinzufügen.",
+    "keine_ergebnisse": "Keine Ergebnisse für '%@'",
+    "stueck": "Stück",
+    "loeschen": "Löschen",
+    "watchlist": "Watchlist",
+    "risk_correlation": "RISIKO & KORRELATION"
+  },
+  "sort": {
+    "title": "POSITIONEN SORTIEREN",
+    "sinceBuy": "Seit Kauf",
+    "today": "Heute",
+    "totalValue": "Gesamtwert",
+    "name": "Name A-Z",
+    "bestPerformer": "Beste Rendite",
+    "worstPerformer": "Schlechteste Rendite"
+  },
+  "actions": {
+    "edit": "Bearbeiten",
+    "remove": "Entfernen",
+    "convert": "Umwandeln",
+    "popBubble": "Bubble platzen lassen",
+    "restoreBubble": "Bubble wiederherstellen"
+  },
+  "confirm": {
+    "removePosition": {
+      "title": "Position entfernen",
+      "message": "Diese Position aus deinem Portfolio entfernen?"
+    },
+    "removeWatchlist": {
+      "title": "Watchlist-Eintrag entfernen",
+      "message": "Diesen Eintrag aus deiner Watchlist entfernen?"
+    },
+    "popBubble": {
+      "title": "Bubble platzen lassen",
+      "message": "Diese Bubble platzen lassen und die Position entfernen?"
+    },
+    "restoreBubble": {
+      "title": "Die zuletzt geplatzte Bubble wiederherstellen?"
+    }
+  },
+  "einzel": {
+    "depot": "DEPOT",
+    "rendite": "RENDITE",
+    "live": "Live",
+    "tippe_ziehen": "Tippe · Ziehen zum Bewegen"
+  },
+  "detail": {
+    "meine_position": "MEINE POSITION",
+    "stueck": "Stück",
+    "kaufpreis": "Ø Kaufpreis",
+    "kaufdatum": "Kaufdatum",
+    "aktuelle_wert": "Aktuelle Wert",
+    "gewinn_verlust": "Gewinn/Verlust",
+    "marktdaten": "MARKTDATEN",
+    "symbol": "Symbol",
+    "typ": "Typ",
+    "quelle": "Quelle",
+    "aktie": "Aktie",
+    "crypto": "Crypto",
+    "blase_platzen": "Blase platzen lassen",
+    "position_loeschen": "Position löschen",
+    "watchlist_item": "WATCHLIST-EINTRAG",
+    "watchlist_entfernen": "Aus Watchlist entfernen",
+    "in_portfolio_kaufen": "Kaufen (Ins Depot verschieben)",
+    "convert_to_position": "In Position umwandeln",
+    "edit_position": "Position bearbeiten",
+    "notes": "Notizen",
+    "tags": "Tags",
+    "save_changes": "Änderungen speichern",
+    "notes_placeholder": "Notizen hier eingeben...",
+    "tags_placeholder": "Tags durch Komma getrennt eingeben...",
+    "insufficient_correlation_data": "Ungenügend historische Daten für Korrelationsanalyse",
+    "pearson_correlation": "Pearson-Korrelation"
+  },
+  "add": {
+    "wertpapier_suchen": "Wertpapier suchen",
+    "abbrechen": "Abbrechen",
+    "aktien_etfs_krypto_suchen": "Aktien, ETFs, Krypto suchen…",
+    "zusammenfassung": "Zusammenfassung",
+    "investitionssumme": "Investitionssumme",
+    "kauf_informationen": "Kauf-Informationen",
+    "stueckzahl": "Stückzahl",
+    "kaufpreis_eur": "Kaufpreis (€)",
+    "stueck_preis": "Stück × Preis",
+    "uebernehmen": "Übernehmen",
+    "portfolio": "Depot",
+    "watchlist": "Watchlist",
+    "zu_watchlist_hinzufuegen": "Zu Watchlist hinzufügen"
+  },
+  "profile": {
+    "profil": "Profil",
+    "abmelden": "Abmelden",
+    "mit_apple_anmelden": "Mit Apple anmelden",
+    "nicht_angemeldet": "Nicht angemeldet",
+    "apple_id_verknuepft": "Apple ID verknüpft",
+    "deine_daten_sicher": "Deine Daten sind sicher gespeichert",
+    "daten_apple_verknuepft": "Deine Daten werden sicher mit deiner Apple ID verknüpft.",
+    "sprache": "Sprache"
+  },
+  "common": {
+    "fertig": "Fertig"
+  },
+  "alerts": {
+    "title": "Preisalarm",
+    "setAlert": "Alarm setzen",
+    "enabled": "Aktiviert",
+    "condition": "Bedingung",
+    "thresholdPrice": "Preis",
+    "thresholdPercent": "Tagesveränderung",
+    "pushReady": "Lokal gespeichert und für spätere Push-Benachrichtigungen vorbereitet.",
+    "save": "Alarm speichern",
+    "kind": {
+      "priceAbove": "Preis über",
+      "priceBelow": "Preis unter",
+      "dailyChangeAbove": "Tagesveränderung über",
+      "volumeSpike": "Volumensprung",
+      "fiftyTwoWeekHigh": "52-Wochen-Hoch",
+      "fiftyTwoWeekLow": "52-Wochen-Tief"
+    }
+  },
+  "allocation": {
+    "title": "ASSET-ALLOKATION",
+    "excludesWatchlist": "Watchlist ausgeschlossen",
+    "empty": "Noch keine aktive Allokation.",
+    "stocks": "Aktien",
+    "etfs": "ETFs",
+    "crypto": "Krypto",
+    "stablecoins": "Stablecoins"
+  },
+  "rebalancing": {
+    "title": "REBALANCING",
+    "subtitle": "Konzentrations- und Diversifikationssignale",
+    "empty": "Noch keine aktiven Positionen zur Analyse.",
+    "positionConcentration": "%@ macht %@%% deines Portfolios aus. Reduziere eventuell die Konzentration.",
+    "technologyConcentration": "Dein Portfolio ist zu %@%% in Technologie gewichtet. Ergänze eventuell andere Sektoren.",
+    "highCorrelation": "%@ und %@ bewegen sich stark gemeinsam.",
+    "noMajorIssues": "Aktuell keine größeren Konzentrationssignale erkannt.",
+    "assetClassImbalance": {
+      "stocks": "Du hast %@%% in Aktien. Prüfe eine Balance mit anderen Anlageklassen.",
+      "etfs": "Du hast %@%% in ETFs. Prüfe, ob das zu deinem Zielmix passt.",
+      "crypto": "Du hast %@%% in Krypto. Diversifikation kann sinnvoll sein."
+    }
+  },
+  "advice": {
+    "noActivePositions": "Keine Positionen",
+    "noActivePositionsBody": "Füge aktive Positionen hinzu, um Portfolio-Coaching zu erhalten.",
+    "allocation": { "title": "PORTFOLIO-ALLOKATION" },
+    "largest": {
+      "title": "GRÖSSTE POSITION",
+      "warning": "%@ macht %@%% deines Portfolios aus. Reduziere eventuell die Konzentration.",
+      "healthy": "%@ ist deine größte Position, die Konzentration wirkt aber kontrolliert."
+    },
+    "assetClass": {
+      "title": "ANLAGEKLASSEN-MIX",
+      "balanced": "Dein Anlageklassen-Mix wirkt ausgewogen.",
+      "concentrated": "%@ macht %@%% deines Portfolios aus. Ergänze eventuell eine weitere Anlageklasse.",
+      "stablecoins": "%@%% ist cash-ähnliche Krypto. Stablecoins sind von Volatilitäts-Hinweisen ausgeschlossen."
+    },
+    "rebalancing": {
+      "title": "REBALANCING-HINWEIS",
+      "emptyTitle": "Ausgewogener Mix",
+      "criticalTitle": "Braucht Aufmerksamkeit",
+      "warningTitle": "Einen Blick wert",
+      "infoTitle": "Wirkt ausgewogen"
+    },
+    "diversification": { "title": "DIVERSIFIKATIONS-TIPP" },
+    "concentration": { "title": "KONZENTRATIONS-HINWEIS" },
+    "stablecoin": {
+      "title": "CASH-ÄHNLICHE KRYPTO",
+      "noneTitle": "Keine Stablecoins",
+      "none": "Derzeit gibt es keine cash-ähnliche Krypto-Position im aktiven Portfolio.",
+      "body": "%@%% ist cash-ähnliche Krypto. Sie bleibt in der Allokation, wird aber bei volatilitätsbasierten Hinweisen ignoriert."
+    },
+    "correlation": {
+      "title": "DIVERSIFIKATION",
+      "noneTitle": "Kein starkes Paar",
+      "none": "Noch kein starkes Korrelationssignal verfügbar.",
+      "positive": "%@ und %@ bewegen sich derzeit ähnlich. Das kann Diversifikation verringern.",
+      "negative": "%@ und %@ bewegen sich eher auseinander, was Diversifikation unterstützen kann."
+    }
+  },
+  "bubbleInfo": {
+    "title": "Bubble-Intelligenz",
+    "size": { "title": "Bubble-Größe", "body": "Zeigt das Portfolio-Gewicht. Größere Bubbles stehen für größere Positionen." },
+    "color": { "title": "Bubble-Farbe", "body": "Zeigt die Performance. Grün bedeutet positive Rendite, Rot negative Rendite, neutral bedeutet flach." },
+    "ghost": { "title": "Ghost-Bubbles", "body": "Watchlist-Einträge erscheinen als Ghost-Bubbles. Sie beeinflussen Portfolio-Wert und Analysen nicht." },
+    "stablecoins": { "title": "Stablecoins", "body": "Stablecoins werden als cash-ähnliche Krypto behandelt und von volatilitätsbasierten Hinweisen ausgeschlossen." }
+  },
+  "pearson": {
+    "title": "Pearson-Korrelation",
+    "badges": {
+      "diversified": "Diversifiziert",
+      "weak": "Geringe Korrelation",
+      "moderate": "Moderate Korrelation",
+      "high": "Hohe Korrelation"
+    },
+    "shortDescription": "Misst, wie stark sich zwei Vermögenswerte gemeinsam bewegen.",
+    "explanation": "Die Korrelation zeigt, ob sich zwei Vermögenswerte tendenziell in die gleiche Richtung, unabhängig voneinander oder in entgegengesetzte Richtungen bewegen.",
+    "formula": {
+      "title": "Die mathematische Formel",
+      "x": "X: Die täglichen Renditen Ihres Portfolios",
+      "y": "Y: Die Renditen des Benchmark-Index (S&P 500)",
+      "sigma": "σ (Sigma): Standardabweichung (Volatilität der Vermögenswerte)"
+    },
+    "simulation": {
+      "title": "Interaktive Simulation",
+      "subtitle": "Ziehen Sie den Schieberegler, um die Korrelation zu simulieren",
+      "label": "Korrelationskoeffizient (r)",
+      "portfolio": "Portfolio-Renditen",
+      "benchmark": "S&P 500 Index"
+    },
+    "scale": {
+      "title": "Korrelationsspektrum",
+      "perfectPositive": {
+        "title": "+1.0",
+        "description": "Perfekte positive Korrelation. Vermögenswerte bewegen sich exakt gleich."
+      },
+      "strongPositive": {
+        "title": "+0,7 bis +0,9",
+        "description": "Starke positive Korrelation. Vermögenswerte bewegen sich meist in die gleiche Richtung."
+      },
+      "moderatePositive": {
+        "title": "+0,3 bis +0,7",
+        "description": "Moderate positive Korrelation."
+      },
+      "noCorrelation": {
+        "title": "0",
+        "description": "Keine Korrelation. Vermögenswerte bewegen sich unabhängig voneinander."
+      },
+      "moderateNegative": {
+        "title": "-0,3 bis -0,7",
+        "description": "Moderate negative Korrelation."
+      },
+      "strongNegative": {
+        "title": "-0,7 bis -1,0",
+        "description": "Starke negative Korrelation."
+      },
+      "perfectNegative": {
+        "title": "-1.0",
+        "description": "Perfekte inverse Korrelation. Wenn ein Vermögenswert steigt, fällt der andere."
+      }
+    },
+    "summaries": {
+      "high": "Hohes Replikationsrisiko (geringe Diversifikation)",
+      "moderate": "Moderate positive Trendspiegelung",
+      "weak": "Unkorrelierte Bewegung (gesunde Diversifikation)",
+      "inverse": "Inverse Bewegung (Absicherungsverhalten)"
+    },
+    "whyItMatters": {
+      "title": "Warum ist das wichtig?",
+      "point1": "Hilft bei der Diversifizierung Ihres Portfolios.",
+      "point2": "Kann das Gesamtrisiko reduzieren.",
+      "point3": "Zeigt versteckte Beziehungen zwischen Anlagen.",
+      "point4": "Hilft bei der Identifizierung von Absicherungsmöglichkeiten."
+    },
+    "disclaimer": {
+      "title": "Wichtig",
+      "text": "Korrelation impliziert keine Kausalität. Wenn sich zwei Vermögenswerte ähnlich bewegen, bedeutet dies nicht zwangsläufig, dass eine Bewegung die andere verursacht."
+    },
+    "errors": {
+      "insufficientData": "Ungenügend historische Daten",
+      "calculationFailed": "Korrelation kann nicht berechnet werden",
+      "loading": "Korrelationsdaten werden geladen..."
+    }
+  },
+  "search": {
+    "portfolio": "Positionen suchen",
+    "market": "Aktien, ETFs, Krypto suchen",
+    "stocks": "Aktien",
+    "etfs": "ETFs",
+    "crypto": "Krypto",
+    "watchlist": "Watchlist",
+    "positions": "Positionen",
+    "noResults": "Keine Ergebnisse",
+    "loading": "Suchen..."
+  },
+  "bubbles": {
+    "merge": "Zusammenführen",
+    "mergeSuggestions": "Zusammenführungsvorschläge",
+    "noMergeSuggestions": "Noch keine Vorschläge",
+    "mergeCluster": "Cluster zusammenführen",
+    "expandCluster": "Cluster aufteilen",
+    "dissolveCluster": "Cluster auflösen",
+    "viewAssets": "Anlagen anzeigen",
+    "mergedBubblesTitle": "Zusammengeführte Blasen",
+    "mergedBubblesText": "Stark korrelierte Anlagen können visuell zu einem Cluster zusammengefasst werden. Das Zusammenführen ist rein visuell und verändert Ihr Portfolio nicht.",
+    "averageCorrelation": "Mittlere Korrelation",
+    "portfolioWeight": "Gewichtung",
+    "assetsCount": "{count} Anlagen",
+    "techCluster": "Tech-Cluster",
+    "financeCluster": "Finanz-Cluster",
+    "energyCluster": "Energie-Cluster",
+    "healthcareCluster": "Gesundheits-Cluster",
+    "stockCluster": "Aktien-Cluster",
+    "etfCluster": "ETF-Cluster",
+    "cryptoCluster": "Krypto-Cluster",
+    "correlationCluster": "Korrelations-Cluster"
+  }
+}

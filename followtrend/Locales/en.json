@@ -1,0 +1,324 @@
+{
+  "_meta": {
+    "displayName": "English",
+    "flag": "🇬🇧"
+  },
+  "tabs": {
+    "gesamt": "Total",
+    "einzel": "Items",
+    "bubbles": "Bubbles",
+    "anlegen": "Add"
+  },
+  "portfolio": {
+    "brokerage": "Brokerage",
+    "kosten": "Cost",
+    "cash": "Cash",
+    "gesamtrendite": "Total Return",
+    "roi": "ROI",
+    "positionen": "Positions",
+    "positionen_suchen": "Search positions…",
+    "aktive_positionen": "ACTIVE POSITIONS",
+    "ergebnisse": "RESULTS",
+    "seit_kauf": "Since buy",
+    "keine_positionen": "No positions. Tap 'Add' to insert.",
+    "keine_ergebnisse": "No results for '%@'",
+    "stueck": "Shares",
+    "loeschen": "Delete",
+    "watchlist": "Watchlist",
+    "risk_correlation": "RISK & CORRELATION"
+  },
+  "sort": {
+    "title": "SORT POSITIONS",
+    "sinceBuy": "Since buy",
+    "today": "Today",
+    "totalValue": "Total value",
+    "name": "Name A-Z",
+    "bestPerformer": "Best performer",
+    "worstPerformer": "Worst performer"
+  },
+  "actions": {
+    "edit": "Edit",
+    "remove": "Remove",
+    "convert": "Convert",
+    "popBubble": "Pop Bubble",
+    "restoreBubble": "Restore Bubble"
+  },
+  "confirm": {
+    "removePosition": {
+      "title": "Remove position",
+      "message": "Remove this position from your portfolio?"
+    },
+    "removeWatchlist": {
+      "title": "Remove watchlist item",
+      "message": "Remove this item from your watchlist?"
+    },
+    "popBubble": {
+      "title": "Pop bubble",
+      "message": "Pop this bubble and remove the position?"
+    },
+    "restoreBubble": {
+      "title": "Restore the last popped bubble?"
+    }
+  },
+  "einzel": {
+    "depot": "PORTFOLIO",
+    "rendite": "RETURN",
+    "live": "Live",
+    "tippe_ziehen": "Tap · Drag to move"
+  },
+  "detail": {
+    "meine_position": "MY POSITION",
+    "stueck": "Shares",
+    "kaufpreis": "Avg Price",
+    "kaufdatum": "Buy Date",
+    "aktuelle_wert": "Current Value",
+    "gewinn_verlust": "Profit/Loss",
+    "marktdaten": "MARKET DATA",
+    "symbol": "Symbol",
+    "typ": "Type",
+    "quelle": "Source",
+    "aktie": "Stock",
+    "crypto": "Crypto",
+    "blase_platzen": "Pop Bubble",
+    "position_loeschen": "Delete Position",
+    "watchlist_item": "WATCHLIST ITEM",
+    "watchlist_entfernen": "Remove from Watchlist",
+    "in_portfolio_kaufen": "Buy (Move to Portfolio)",
+    "convert_to_position": "Convert to Position",
+    "edit_position": "Edit Position",
+    "notes": "Notes",
+    "tags": "Tags",
+    "save_changes": "Save Changes",
+    "notes_placeholder": "Enter notes here...",
+    "tags_placeholder": "Enter tags (comma separated)...",
+    "insufficient_correlation_data": "Insufficient historical data for correlation analysis",
+    "pearson_correlation": "Pearson Correlation"
+  },
+  "add": {
+    "wertpapier_suchen": "Search assets...",
+    "abbrechen": "Cancel",
+    "aktien_etfs_krypto_suchen": "Search Stocks, ETFs, Crypto...",
+    "zusammenfassung": "Summary",
+    "investitionssumme": "Investment Amount",
+    "kauf_informationen": "Buy Information",
+    "stueckzahl": "Shares",
+    "kaufpreis_eur": "Price (€)",
+    "stueck_preis": "Shares × Price",
+    "uebernehmen": "Add Position",
+    "portfolio": "Portfolio",
+    "watchlist": "Watchlist",
+    "zu_watchlist_hinzufuegen": "Add to Watchlist"
+  },
+  "profile": {
+    "profil": "Profile",
+    "abmelden": "Sign Out",
+    "mit_apple_anmelden": "Sign In with Apple",
+    "nicht_angemeldet": "Not signed in",
+    "apple_id_verknuepft": "Apple ID Linked",
+    "deine_daten_sicher": "Your data is securely stored",
+    "daten_apple_verknuepft": "Your data is securely linked to your Apple ID.",
+    "sprache": "Language"
+  },
+  "common": {
+    "fertig": "Done"
+  },
+  "alerts": {
+    "title": "Price Alert",
+    "setAlert": "Set Alert",
+    "enabled": "Enabled",
+    "condition": "Condition",
+    "thresholdPrice": "Price",
+    "thresholdPercent": "Daily change",
+    "pushReady": "Stored locally and ready for push notifications later.",
+    "save": "Save Alert",
+    "kind": {
+      "priceAbove": "Price above",
+      "priceBelow": "Price below",
+      "dailyChangeAbove": "Daily change exceeds",
+      "volumeSpike": "Volume spike",
+      "fiftyTwoWeekHigh": "52-week high",
+      "fiftyTwoWeekLow": "52-week low"
+    }
+  },
+  "allocation": {
+    "title": "ASSET ALLOCATION",
+    "excludesWatchlist": "Watchlist excluded",
+    "empty": "No active allocation yet.",
+    "stocks": "Stocks",
+    "etfs": "ETFs",
+    "crypto": "Crypto",
+    "stablecoins": "Stablecoins"
+  },
+  "rebalancing": {
+    "title": "REBALANCING",
+    "subtitle": "Concentration and diversification signals",
+    "empty": "No active positions to analyze yet.",
+    "positionConcentration": "%@ represents %@%% of your portfolio. Consider reducing concentration.",
+    "technologyConcentration": "Your portfolio is %@%% technology-weighted. Consider adding other sectors.",
+    "highCorrelation": "%@ and %@ move strongly together.",
+    "noMajorIssues": "No major concentration signals detected right now.",
+    "assetClassImbalance": {
+      "stocks": "You have %@%% in stocks. Consider balancing with other asset classes.",
+      "etfs": "You have %@%% in ETFs. Review whether this matches your target mix.",
+      "crypto": "You have %@%% in crypto. Consider diversification."
+    }
+  },
+  "advice": {
+    "noActivePositions": "No positions",
+    "noActivePositionsBody": "Add active positions to unlock portfolio coaching.",
+    "allocation": { "title": "PORTFOLIO ALLOCATION" },
+    "largest": {
+      "title": "LARGEST POSITION",
+      "warning": "%@ represents %@%% of your portfolio. Consider reducing concentration.",
+      "healthy": "%@ is your largest position, but concentration looks controlled."
+    },
+    "assetClass": {
+      "title": "ASSET CLASS BALANCE",
+      "balanced": "Your asset class mix looks reasonably balanced.",
+      "concentrated": "%@ represents %@%% of your portfolio. Consider adding another asset class.",
+      "stablecoins": "%@%% is cash-like crypto. Stablecoins are excluded from volatility advice."
+    },
+    "rebalancing": {
+      "title": "REBALANCING SUGGESTION",
+      "emptyTitle": "Balanced mix",
+      "criticalTitle": "Needs attention",
+      "warningTitle": "Worth a look",
+      "infoTitle": "Looks balanced"
+    },
+    "diversification": { "title": "DIVERSIFICATION TIP" },
+    "concentration": { "title": "CONCENTRATION WARNING" },
+    "stablecoin": {
+      "title": "CASH-LIKE CRYPTO",
+      "noneTitle": "No stablecoins",
+      "none": "No cash-like crypto position is currently in the active portfolio.",
+      "body": "%@%% is cash-like crypto. It stays in allocation, but is ignored for volatility-based advice."
+    },
+    "correlation": {
+      "title": "DIVERSIFICATION",
+      "noneTitle": "No strong pair",
+      "none": "No strong correlation signal is available yet.",
+      "positive": "%@ and %@ currently move similarly. That can reduce diversification.",
+      "negative": "%@ and %@ tend to move apart, which may help diversification."
+    }
+  },
+  "bubbleInfo": {
+    "title": "Bubble Intelligence",
+    "size": { "title": "Bubble size", "body": "Shows portfolio weight. Larger bubbles represent larger positions." },
+    "color": { "title": "Bubble color", "body": "Shows performance. Green means positive return, red means negative return, neutral means flat." },
+    "ghost": { "title": "Ghost bubbles", "body": "Watchlist items are shown as ghost bubbles. They do not affect portfolio value or analytics." },
+    "stablecoins": { "title": "Stablecoins", "body": "Stablecoins are treated as cash-like crypto and excluded from volatility-based advice." }
+  },
+  "pearson": {
+    "title": "Pearson Correlation",
+    "badges": {
+      "diversified": "Diversified",
+      "weak": "Low Correlation",
+      "moderate": "Moderate Correlation",
+      "high": "High Correlation"
+    },
+    "shortDescription": "Measures how strongly two assets move together.",
+    "explanation": "Correlation shows whether two assets tend to move in the same direction, independently, or in opposite directions.",
+    "formula": {
+      "title": "The Mathematical Formula",
+      "x": "X: Your portfolio daily returns",
+      "y": "Y: Benchmark index returns (S&P 500)",
+      "sigma": "σ (sigma): Standard deviation (asset volatility)"
+    },
+    "simulation": {
+      "title": "Interactive Simulation",
+      "subtitle": "Drag the slider to simulate returns correlation",
+      "label": "Correlation Coefficient (r)",
+      "portfolio": "Portfolio Returns",
+      "benchmark": "S&P 500 Index"
+    },
+    "scale": {
+      "title": "Correlation Spectrum",
+      "perfectPositive": {
+        "title": "+1.0",
+        "description": "Perfect positive correlation. Assets move exactly together."
+      },
+      "strongPositive": {
+        "title": "+0.7 to +0.9",
+        "description": "Strong positive correlation. Assets generally move in the same direction."
+      },
+      "moderatePositive": {
+        "title": "+0.3 to +0.7",
+        "description": "Moderate positive correlation."
+      },
+      "noCorrelation": {
+        "title": "0",
+        "description": "No correlation. Assets move independently."
+      },
+      "moderateNegative": {
+        "title": "-0.3 to -0.7",
+        "description": "Moderate negative correlation."
+      },
+      "strongNegative": {
+        "title": "-0.7 to -1.0",
+        "description": "Strong negative correlation."
+      },
+      "perfectNegative": {
+        "title": "-1.0",
+        "description": "Perfect inverse correlation. When one asset rises, the other falls."
+      }
+    },
+    "summaries": {
+      "high": "High replication risk (low diversification)",
+      "moderate": "Moderate positive trend mirroring",
+      "weak": "Uncorrelated movement (healthy diversification)",
+      "inverse": "Inverse movement (hedging behavior)"
+    },
+    "whyItMatters": {
+      "title": "Why does it matter?",
+      "point1": "Helps diversify your portfolio.",
+      "point2": "Can reduce overall risk.",
+      "point3": "Shows hidden relationships between investments.",
+      "point4": "Helps identify hedging opportunities."
+    },
+    "disclaimer": {
+      "title": "Important",
+      "text": "Correlation does not imply causation. Two assets moving similarly does not necessarily mean one causes the movement of the other."
+    },
+    "errors": {
+      "insufficientData": "Insufficient historical data",
+      "calculationFailed": "Unable to calculate correlation",
+      "loading": "Loading correlation data..."
+    }
+  },
+  "search": {
+    "portfolio": "Search positions",
+    "market": "Search stocks, ETFs, crypto",
+    "stocks": "Stocks",
+    "etfs": "ETFs",
+    "crypto": "Crypto",
+    "watchlist": "Watchlist",
+    "positions": "Positions",
+    "noResults": "No results",
+    "loading": "Searching..."
+  },
+  "bubbles": {
+    "merge": "Merge",
+    "mergeSuggestions": "Merge Suggestions",
+    "noMergeSuggestions": "No merge suggestions yet",
+    "mergeCluster": "Merge Cluster",
+    "expandCluster": "Expand Cluster",
+    "dissolveCluster": "Dissolve Cluster",
+    "viewAssets": "View Assets",
+    "mergedBubblesTitle": "Merged Bubbles",
+    "mergedBubblesText": "Highly related assets can be grouped into one cluster bubble. Merging is visual only and does not change your portfolio.",
+    "averageCorrelation": "Avg correlation",
+    "portfolioWeight": "Portfolio weight",
+    "assetsCount": "{count} assets",
+    "techCluster": "Tech Cluster",
+    "financeCluster": "Finance Cluster",
+    "energyCluster": "Energy Cluster",
+    "healthcareCluster": "Healthcare Cluster",
+    "stockCluster": "Stock Cluster",
+    "etfCluster": "ETF Cluster",
+    "cryptoCluster": "Crypto Cluster",
+    "correlationCluster": "Correlation Cluster",
+    "popSelected": "Pop Selected",
+    "mergeSelected": "Merge Selected",
+    "customCluster": "Custom Cluster"
+  }
+}
