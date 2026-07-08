@@ -73,6 +73,13 @@ struct Investment: Identifiable, Codable, Hashable {
 
     var totalCost: Double { shares * buyPrice }
 
+    /// Currency the *live* market price is quoted in by our data sources:
+    /// crypto quotes come from the proxy in EUR, stock quotes from Yahoo in USD.
+    /// Distinct from `nativeCurrency` (the user's cost-basis currency) — valuing
+    /// the live price must convert from THIS, not from the cost currency, or
+    /// crypto (EUR-quoted) positions get mis-converted as if they were USD.
+    var priceCurrency: String { coinId != nil ? "EUR" : "USD" }
+
     var hasBrokerAdjustment: Bool {
         guard let factor = priceAdjustmentFactor else { return false }
         return factor.isFinite && factor > 0

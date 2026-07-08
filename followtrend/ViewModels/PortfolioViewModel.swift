@@ -193,7 +193,7 @@ final class PortfolioViewModel: ObservableObject {
 
     func selectedCurrencyValue(for inv: Investment) -> Double {
         let nativeValue = inv.shares * displayPrice(for: inv)
-        return CurrencyService.shared.convertToSelected(value: nativeValue, from: inv.nativeCurrency)
+        return CurrencyService.shared.convertToSelected(value: nativeValue, from: inv.priceCurrency)
     }
 
     func selectedCurrencyCost(for inv: Investment) -> Double {
@@ -318,7 +318,7 @@ final class PortfolioViewModel: ObservableObject {
         for inv in investments {
             guard !inv.isWatchlist else { continue }
             let price = displayPrice(for: inv)
-            let convertedPrice = cs.convertToSelected(value: price, from: inv.nativeCurrency)
+            let convertedPrice = cs.convertToSelected(value: price, from: inv.priceCurrency)
             value += inv.shares * convertedPrice
 
             let convertedCost = cs.convertToSelected(value: inv.totalCost, from: inv.nativeCurrency)
@@ -348,7 +348,7 @@ final class PortfolioViewModel: ObservableObject {
 
         let valuesByID: [String: Double] = Dictionary(uniqueKeysWithValues: active.map { inv in
             let price = displayPrice(for: inv)
-            let convertedPrice = cs.convertToSelected(value: price, from: inv.nativeCurrency)
+            let convertedPrice = cs.convertToSelected(value: price, from: inv.priceCurrency)
             return (inv.id, inv.shares * convertedPrice)
         })
 
@@ -1171,7 +1171,7 @@ final class PortfolioViewModel: ObservableObject {
         watchlistRows = watchlist.map { inv in
             let price    = marketService.getCurrentPrice(for: inv.symbol)
             let gainPct  = marketService.getStockInfo(for: inv.symbol)?.dayChangePercent ?? 0.0
-            let priceText = cs.format(value: price, from: inv.nativeCurrency)
+            let priceText = cs.format(value: price, from: inv.priceCurrency)
             let changeText = String(format: "%@%.1f%%", gainPct >= 0 ? "+" : "", gainPct)
 
             return WatchlistRowModel(
