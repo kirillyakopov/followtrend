@@ -495,14 +495,18 @@ final class PortfolioViewModel: ObservableObject {
         brokerAdjustment: BrokerAdjustmentDraft? = nil
     ) {
         let sym = symbol.uppercased().trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !sym.isEmpty, shares > 0, buyPrice > 0 else { return }
+        // Watchlist ghosts legitimately have no purchase price (0) — only real
+        // positions require a positive buy price. (This is why imported ghost
+        // bubbles used to silently vanish.)
+        guard !sym.isEmpty, shares > 0 else { return }
+        if !isWatchlist, buyPrice <= 0 { return }
 
         let assetName = name ?? marketService.getStockInfo(for: sym)?.name ?? sym
 
         if let idx = investments.firstIndex(where: { $0.symbol == sym && $0.isWatchlist == isWatchlist }) {
             let existing      = investments[idx]
             if isWatchlist {
-                investments[idx].buyPrice = buyPrice
+                if buyPrice > 0 { investments[idx].buyPrice = buyPrice }
             } else {
                 let totalShares   = existing.shares + shares
                 let weightedPrice = (existing.shares * existing.buyPrice + shares * buyPrice) / totalShares
@@ -1099,7 +1103,6 @@ final class PortfolioViewModel: ObservableObject {
         
         // 5. Empty Snapshot Bug Guard
         if visible.isEmpty && !base.isEmpty {
-            print("WARNING: visible.isEmpty but base is not. Falling back.")
             visible = base
         }
         
@@ -1109,12 +1112,6 @@ final class PortfolioViewModel: ObservableObject {
                 connections.append(BubbleConnection(id: "\(cluster.id.uuidString)-\(sym)", fromSymbol: cluster.name, toSymbol: sym))
             }
         }
-        
-        print("Investments:", investments.count)
-        print("Base particles:", base.count)
-        print("Clusters:", bubbleClusters.count)
-        print("Expanded cluster:", expandedClusterID?.uuidString ?? "none")
-        print("Visible particles:", visible.count)
         
         self.bubbleRenderSnapshot = BubbleRenderSnapshot(
             particles: visible,

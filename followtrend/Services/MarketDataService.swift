@@ -75,6 +75,12 @@ final class MarketDataService {
     private let net = NetworkService.shared
     private var cache: [String: CacheEntry] = [:]
 
+    /// Symbols we remap to Yahoo's "-USD" crypto pair.
+    static let cryptoPairSymbols: Set<String> = ["BTC", "ETH", "SOL", "ADA", "XRP", "DOGE", "BNB", "AVAX", "DOT", "MATIC"]
+
+    /// Existence checks are memoised for the app session (symbols don't stop existing).
+    private var existenceCache: [String: Bool] = [:]
+
     private init() {}
 
     private func getProxyURL(path: String, params: [String: String]) -> URL? {
@@ -100,6 +106,34 @@ final class MarketDataService {
             return StockMarketService.shared.getCurrentPrice(for: symbol)
         } catch {
             return StockMarketService.shared.getCurrentPrice(for: symbol)
+        }
+    }
+
+    // MARK: - Symbol existence (portfolio import validation)
+
+    /// Definitive existence check used by portfolio import.
+    /// - Returns `true` if a real quote exists, `false` if the provider says the
+    ///   symbol is unknown, and `nil` if it can't be determined (offline / rate
+    ///   limited) so callers can treat it as *unverified* rather than *not found*.
+    func symbolExists(symbol: String, coinId: String?) async -> Bool? {
+        let sym = symbol.uppercased()
+        if coinId != nil { return true }                 // already resolved to a known crypto id
+        if let cached = existenceCache[sym] { return cached }
+
+        let yfSymbol = Self.cryptoPairSymbols.contains(sym) ? "\(sym)-USD" : sym
+        guard let url = URL(string: "https://query1.finance.yahoo.com/v8/finance/chart/\(yfSymbol)?range=5d&interval=1d") else { return nil }
+
+        do {
+            let response: YahooChartResponse = try await net.fetch(url)
+            let exists = (response.chart.result?.first?.meta.regularMarketPrice ?? 0) > 0
+            existenceCache[sym] = exists
+            return exists
+        } catch {
+            if case NetworkError.httpError(let code) = error, code == 404 {
+                existenceCache[sym] = false
+                return false
+            }
+            return nil   // network / rate-limit / decode → unverified, don't accuse
         }
     }
 
