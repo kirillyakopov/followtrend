@@ -382,8 +382,11 @@ struct BubblePhysicsView: View {
 
     private func expandClusterPreview(_ tapped: BubbleParticle, canvasSize: CGSize) {
         let previewSymbols = tapped.clusterSymbols
+        // Match on symbol AND ownership — a watchlist ghost sharing a ticker with
+        // an owned position (e.g. ghost NVDA + owned NVDA) must never appear as
+        // a cluster member.
         let previewChildren = vm.bubbleRenderSnapshot.baseParticles.filter {
-            previewSymbols.contains($0.symbol)
+            previewSymbols.contains($0.symbol) && !$0.isWatchlist
         }
 
         var tempChildren: [TempChildParticle] = []
@@ -489,6 +492,9 @@ struct BubblePhysicsView: View {
         // ── Spawn Animation (Scale, Fade, Blur) ─────────────────────────
         let progress = p.spawnProgress
 
+        // Negative progress = cascade stagger delay still running → invisible.
+        guard progress > 0 else { return }
+
         var drawCtx = ctx
         let scale: CGFloat
         let bodyOpacity: Double
@@ -499,11 +505,13 @@ struct BubblePhysicsView: View {
             // Materialization animates over the first 0.5s of the progress (0.0 to 0.5)
             let materializationProgress = min(1.0, progress / 0.5)
 
-            // Premium spring curve with soft overshoot (plain ease under Reduce Motion)
+            // Jumpy pop-in: scale 0.2 → overshoot ≈1.06 → 1.0 (plain ease under
+            // Reduce Motion). Slower decay (−4) keeps a visible bounce, matching
+            // the prototype's cubic-bezier(0.34, 1.45, 0.45, 1).
             let springVal = reduceMotion
                 ? materializationProgress
-                : 1.0 - exp(-7.0 * materializationProgress) * cos(1.5 * .pi * materializationProgress)
-            scale = CGFloat(0.70 + springVal * 0.30)
+                : 1.0 - exp(-4.0 * materializationProgress) * cos(1.5 * .pi * materializationProgress)
+            scale = CGFloat(0.20 + springVal * 0.80)
             bodyOpacity = max(0.0, min(1.0, springVal))
 
             // Glow appears first

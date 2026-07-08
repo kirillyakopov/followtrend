@@ -69,14 +69,32 @@ final class BubblePhysicsEngine: ObservableObject {
     @Published var isLayoutReady = false
 
     private let gravity: CGFloat = 0.0025          // strong center pull while spawning/settling (gather quickly)
-    private let centerPull: CGFloat = 0.00018      // weak pull once active → free float (prototype ≈ 0.00014)
-    private let damping: CGFloat = 0.945           // prototype per-frame damping
-    private let collisionRestitution: CGFloat = 0.03
+    private let centerPull: CGFloat = 0.00042      // gravitational pull to field centre once active.
+                                                   // ~3× the prototype: our field is larger and correlation
+                                                   // forces exist — this keeps the flock gathered mid-screen
+                                                   // while still allowing free float and drag.
+    private let damping: CGFloat = 0.945           // prototype per-step damping (at 60 Hz)
+    private let positionalCorrection: CGFloat = 0.32 // prototype: separate 32% of overlap per step, mass-weighted
+    private let collisionImpulse: CGFloat = 0.05   // prototype: overlap-proportional velocity impulse
     private let boundaryBounce: CGFloat = 0.02
     private let repulsionPad: CGFloat = 1.08
     private let driftAmplitude: CGFloat = 0.005    // settle-time drift (decays to rest)
     private let wanderAmp: CGFloat = 0.012         // perpetual idle wander once active → bubbles stay alive
     private let correlationAlpha: CGFloat = 0.0018
+
+    // Soft walls: springs push back inside these insets so bubbles never rest on
+    // the screen edge or drift under the floating search/legend overlay (top)
+    // and the hint line (bottom). Hard clamp remains only as a backstop.
+    private let wallSpring: CGFloat = 0.02          // prototype soft-wall spring
+    private let fieldInsetTop: CGFloat = 112
+    private let fieldInsetBottom: CGFloat = 44
+    private let fieldInsetSide: CGFloat = 6
+
+    // Fixed 60 Hz timestep — Canvas ticks at up to 120 Hz on ProMotion, which
+    // would double every per-step force. Accumulate real time and advance the
+    // simulation in 1/60 s steps (mirrors the prototype's rAF loop rate).
+    private var lastTickDate: Date?
+    private var stepAccumulator: TimeInterval = 0
     private var spawnTask: Task<Void, Never>?
 
     // Honors the system Reduce Motion setting: no idle wander, heavier damping
@@ -126,7 +144,9 @@ final class BubblePhysicsEngine: ObservableObject {
                 }
                 syncedParticles.append(existing)
             } else if p.isCluster {
-                let oldInvolved = oldParticles.filter { p.clusterSymbols.contains($0.symbol) }
+                // Only owned bubbles merge into a cluster — a watchlist ghost with
+                // the same ticker must keep floating freely.
+                let oldInvolved = oldParticles.filter { p.clusterSymbols.contains($0.symbol) && !$0.isWatchlist }
 
                 let midpoint: CGPoint
                 let avgVelocity: CGVector
@@ -165,7 +185,7 @@ final class BubblePhysicsEngine: ObservableObject {
                 p.spawnState = .spawning
                 p.spawnProgress = 0.0
                 syncedParticles.append(p)
-            } else if let cached = expandedClusterPositions[p.symbol] {
+            } else if let cached = expandedClusterPositions[p.symbol], !p.isWatchlist {
                 let angle = CGFloat.random(in: 0...(2 * .pi))
                 let speed = CGFloat.random(in: 0.8...1.5)
                 p.position = cached.position
@@ -200,36 +220,32 @@ final class BubblePhysicsEngine: ObservableObject {
         
         guard !added.isEmpty else { return }
 
-        let maxR = newParticles.map(\.radius).max() ?? 0
-        let largeThreshold = max(55.0, maxR * 0.75)
-
         if !isLayoutReady {
-            // Initial layout: reset tickCount so decay starts fresh
+            // First entrance: cascade pop-in (prototype ftPopIn — 42 ms stagger,
+            // scale 0.2 → overshoot → 1.0). Bubbles are pre-placed on a golden-angle
+            // spiral around the field centre (largest first), start invisible via
+            // NEGATIVE spawnProgress (the stagger delay), and spring in one by one
+            // while the physics gently separates them.
             tickCount = 0
             var initialParticles: [BubbleParticle] = particles
 
-            for var p in added {
-                if p.radius >= largeThreshold {
-                    let offsetRange: CGFloat = 20.0
-                    p.position = CGPoint(
-                        x: cx + CGFloat.random(in: -offsetRange...offsetRange),
-                        y: cy + CGFloat.random(in: -offsetRange...offsetRange)
-                    )
-                    p.velocity = .zero
-                    p.spawnState = .active
-                    p.spawnProgress = 1.0
-                } else {
-                    prepareEdgeSpawn(&p, in: size, center: CGPoint(x: cx, y: cy), speed: 1.5)
-                }
+            let fieldCy = size.height * 0.45
+            let sorted = added.sorted { $0.radius > $1.radius }
+            for (i, var p) in sorted.enumerated() {
+                let ang = CGFloat(i) * 2.39996          // golden angle
+                let rad = 30 + 44 * sqrt(CGFloat(i))
+                let margin = p.radius + 8
+                p.position = CGPoint(
+                    x: min(max(cx + cos(ang) * rad, margin), size.width - margin),
+                    y: min(max(fieldCy + sin(ang) * rad, fieldInsetTop + margin), size.height - fieldInsetBottom - margin)
+                )
+                p.velocity = .zero
+                p.spawnState = .spawning
+                p.spawnProgress = -min(0.43, Double(i) * 0.042)   // cascade stagger
                 initialParticles.append(p)
             }
 
             particles = initialParticles
-
-            for _ in 0..<5 {
-                tick(date: Date())
-            }
-
             isLayoutReady = true
         } else {
             spawnTask = Task { @MainActor in
@@ -333,6 +349,25 @@ final class BubblePhysicsEngine: ObservableObject {
     }
 
     func tick(date: Date) {
+        let dt: TimeInterval
+        if let last = lastTickDate {
+            dt = min(max(date.timeIntervalSince(last), 0), 0.1)
+        } else {
+            dt = 1.0 / 60.0
+        }
+        lastTickDate = date
+        stepAccumulator += dt
+
+        var steps = 0
+        while stepAccumulator >= 1.0 / 60.0, steps < 3 {
+            stepOnce()
+            stepAccumulator -= 1.0 / 60.0
+            steps += 1
+        }
+        if steps == 3 { stepAccumulator = 0 }   // long hitch: don't spiral catching up
+    }
+
+    private func stepOnce() {
         tickCount += 1
 
         updatePops()
@@ -342,44 +377,46 @@ final class BubblePhysicsEngine: ObservableObject {
         guard !particles.isEmpty else { return }
 
         let cx = canvasSize.width / 2
-        let cy = canvasSize.height / 2
+        // Prototype pulls toward 45% height — keeps the flock visually centered
+        // in the usable field (below the header overlay, above the toolbar).
+        let cy = canvasSize.height * 0.45
         let decayBase = max(0.0, 1.0 - tickCount * 0.003)
         var pts = particles
 
         advanceSpawnProgress(&pts)
         applyGravityAndDrift(&pts, center: CGPoint(x: cx, y: cy), decayBase: decayBase)
         applyCorrelationForces(&pts)
-        // Two passes of collision resolution per frame:
+        // Two passes of collision resolution per step:
         // - first pass separates most overlaps
         // - second pass catches residuals left after the first repositioning
         resolveCollisions(&pts)
         resolveCollisions(&pts)
         applyClusterExpansionRepulsion(&pts)
+        applySoftWalls(&pts)
         clampToBounds(&pts)
 
         particles = pts
     }
 
-    private func prepareEdgeSpawn(_ particle: inout BubbleParticle, in size: CGSize, center: CGPoint, speed: CGFloat) {
-        let margin = particle.radius + 8
-        let side = Int.random(in: 0..<4)
-        switch side {
-        case 0:
-            particle.position = CGPoint(x: CGFloat.random(in: margin...(size.width - margin)), y: -margin)
-        case 1:
-            particle.position = CGPoint(x: size.width + margin, y: CGFloat.random(in: margin...(size.height - margin)))
-        case 2:
-            particle.position = CGPoint(x: CGFloat.random(in: margin...(size.width - margin)), y: size.height + margin)
-        default:
-            particle.position = CGPoint(x: -margin, y: CGFloat.random(in: margin...(size.height - margin)))
+    private func applySoftWalls(_ pts: inout [BubbleParticle]) {
+        let w = canvasSize.width
+        let h = canvasSize.height
+        guard w > 0, h > 0 else { return }
+        for i in pts.indices {
+            let r = pts[i].radius
+            let padL = fieldInsetSide + r
+            let padR = w - fieldInsetSide - r
+            let padT = fieldInsetTop + r
+            let padB = h - fieldInsetBottom - r
+            if padL < padR {
+                if pts[i].position.x < padL { pts[i].velocity.dx += (padL - pts[i].position.x) * wallSpring }
+                if pts[i].position.x > padR { pts[i].velocity.dx -= (pts[i].position.x - padR) * wallSpring }
+            }
+            if padT < padB {
+                if pts[i].position.y < padT { pts[i].velocity.dy += (padT - pts[i].position.y) * wallSpring }
+                if pts[i].position.y > padB { pts[i].velocity.dy -= (pts[i].position.y - padB) * wallSpring }
+            }
         }
-
-        let ddx = center.x - particle.position.x
-        let ddy = center.y - particle.position.y
-        let d = max(sqrt(ddx * ddx + ddy * ddy), 1)
-        particle.velocity = CGVector(dx: ddx / d * speed, dy: ddy / d * speed)
-        particle.spawnState = .spawning
-        particle.spawnProgress = 0.0
     }
 
     /// Spawn a newly-added bubble at a safe interior position near the center
@@ -556,8 +593,8 @@ final class BubblePhysicsEngine: ObservableObject {
             if pts[i].velocity.dx.isNaN || pts[i].velocity.dx.isInfinite { pts[i].velocity.dx = 0 }
             if pts[i].velocity.dy.isNaN || pts[i].velocity.dy.isInfinite { pts[i].velocity.dy = 0 }
 
-            // Speed cap: tighter for spawning bubbles
-            let maxSpeed: CGFloat = isEarlySpawn ? 1.5 : (pts[i].spawnState == .spawning ? 2.5 : 8.0)
+            // Speed cap: tighter for spawning bubbles (prototype caps at 7)
+            let maxSpeed: CGFloat = isEarlySpawn ? 1.5 : (pts[i].spawnState == .spawning ? 2.5 : 7.0)
             let spd = sqrt(pts[i].velocity.dx * pts[i].velocity.dx + pts[i].velocity.dy * pts[i].velocity.dy)
             if spd > maxSpeed {
                 pts[i].velocity.dx = (pts[i].velocity.dx / spd) * maxSpeed
@@ -593,9 +630,17 @@ final class BubblePhysicsEngine: ObservableObject {
                 let nx = ddx / dist
                 let ny = ddy / dist
                 let d0 = pts[i].radius + pts[j].radius
+
+                // Anti-correlated repulsion must be LOCAL-ONLY. The raw formula
+                // grows with distance and never stops, so negatively correlated
+                // bubbles push each other clear to opposite screen edges and the
+                // centre pull can never win. Beyond a small personal-space band
+                // the repulsion simply stops.
+                if r < 0, dist > d0 + 140 { continue }
+
                 // Cap the force magnitude so no single pair can spike velocity
                 let rawForce = correlationAlpha * CGFloat(r) * (dist - d0)
-                let force = max(-0.04, min(0.04, rawForce))
+                let force = max(-0.02, min(0.02, rawForce))
 
                 pts[i].velocity.dx += force * nx
                 pts[i].velocity.dy += force * ny
@@ -628,24 +673,25 @@ final class BubblePhysicsEngine: ObservableObject {
                     pts[j].position.y += ny * overlap
                     // No velocity impulse while spawning
                 } else {
-                    // Full overlap resolution for active-active pairs
-                    let overlap = (minDist - dist) / 2.0
-                    pts[i].position.x -= nx * overlap
-                    pts[i].position.y -= ny * overlap
-                    pts[j].position.x += nx * overlap
-                    pts[j].position.y += ny * overlap
+                    // Prototype-style soft resolution: separate only 32% of the
+                    // overlap per step, split by mass (∝ r²), plus a small
+                    // overlap-proportional impulse. Full separation per frame
+                    // shoves crowded piles into the walls and wedges them there.
+                    let ma = pts[i].radius * pts[i].radius
+                    let mb = pts[j].radius * pts[j].radius
+                    let ka = mb / (ma + mb)
+                    let kb = ma / (ma + mb)
+                    let ov = minDist - dist
 
-                    // Velocity impulse only when approaching
-                    let dvx = pts[j].velocity.dx - pts[i].velocity.dx
-                    let dvy = pts[j].velocity.dy - pts[i].velocity.dy
-                    let dot = dvx * nx + dvy * ny
-                    if dot < 0 {
-                        let imp = dot * collisionRestitution
-                        pts[i].velocity.dx += imp * nx
-                        pts[i].velocity.dy += imp * ny
-                        pts[j].velocity.dx -= imp * nx
-                        pts[j].velocity.dy -= imp * ny
-                    }
+                    pts[i].position.x -= nx * ov * positionalCorrection * ka
+                    pts[i].position.y -= ny * ov * positionalCorrection * ka
+                    pts[j].position.x += nx * ov * positionalCorrection * kb
+                    pts[j].position.y += ny * ov * positionalCorrection * kb
+
+                    pts[i].velocity.dx -= nx * ov * collisionImpulse * ka
+                    pts[i].velocity.dy -= ny * ov * collisionImpulse * ka
+                    pts[j].velocity.dx += nx * ov * collisionImpulse * kb
+                    pts[j].velocity.dy += ny * ov * collisionImpulse * kb
                 }
             }
         }
