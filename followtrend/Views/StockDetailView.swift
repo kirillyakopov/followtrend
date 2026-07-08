@@ -56,7 +56,7 @@ final class StockDetailViewModel: ObservableObject {
                 if let id = coinId {
                     livePrice = try await cryptoService.currentPrice(coinId: id)
                 } else {
-                    // Fetch live quote from Finnhub
+                    // Fetch live quote
                     let price = try await marketService.fetchQuote(symbol: investment.symbol)
                     if price > 0 { livePrice = price }
                 }
@@ -124,28 +124,21 @@ struct StockDetailView: View {
                 Color.bgDeep.ignoresSafeArea()
 
                 ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 24) {
+                    VStack(alignment: .leading, spacing: 20) {
 
-                        // Price header
+                        // Header: 52pt tile · ticker + company · price + day change
                         priceHeader
 
-                        // Real chart
-                        ChartView(
-                            symbol:     inv.symbol,
-                            coinId:     detailVM.coinId,
-                            isPositive: inv.isWatchlist ? (detailVM.priceChange >= 0) : (detailVM.gainLoss(mode: priceSourceMode) >= 0),
-                            priceAdjustmentFactor: inv.priceAdjustmentFactor,
-                            displayBrokerAdjustedChart: priceSourceMode == .brokerAdjusted
-                        )
-                        .cardStyle()
+                        // Real chart (component restyled separately) + period footer
+                        chartCard
 
-                        // Position summary
+                        // Statistics grid
+                        statisticsCard
+
+                        // Context-dependent position / watchlist section
                         positionCard
 
-                        // Market info
-                        marketInfoCard
-
-                        // Delete / Pop actions
+                        // Context actions (edit / alert / pop / remove)
                         if onDelete != nil || onPop != nil {
                             actionSection
                         }
@@ -154,20 +147,23 @@ struct StockDetailView: View {
                     .padding(.bottom, 60)
                 }
             }
-            .navigationTitle(inv.symbol)
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { dismiss() } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 22))
-                            .foregroundStyle(Color.textMuted)
+                        Image(systemName: "xmark")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Color.labelSecondary)
+                            .frame(width: 34, height: 34)
                     }
+                    .buttonStyle(.glass)
+                    .buttonBorderShape(.circle)
                 }
                 ToolbarItem(placement: .topBarLeading) {
                     if detailVM.isRefreshing {
                         ProgressView()
-                            .tint(Color.jade)
+                            .tint(Color.mintAccent)
                             .scaleEffect(0.8)
                     }
                 }
@@ -194,366 +190,426 @@ struct StockDetailView: View {
         .preferredColorScheme(.dark)
     }
 
-    // MARK: - Price header
+    // MARK: - Header
 
     private var priceHeader: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(inv.name)
-                .font(.system(size: 14))
-                .foregroundStyle(Color.textSecondary)
+        HStack(alignment: .center, spacing: 12) {
+            MonogramTile(symbol: inv.symbol, size: 52)
 
-            HStack(alignment: .lastTextBaseline, spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(inv.symbol)
+                    .font(AppTypography.sheetTitle)
+                    .foregroundStyle(Color.textPrimary)
+                Text(inv.name)
+                    .font(.system(size: 12.5, weight: .medium))
+                    .foregroundStyle(Color.labelSecondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 12)
+
+            VStack(alignment: .trailing, spacing: 3) {
                 Text(CurrencyService.shared.format(value: inv.isWatchlist ? detailVM.livePrice : detailVM.displayPrice(mode: priceSourceMode), from: inv.nativeCurrency))
-                    .font(.system(size: 38, weight: .bold, design: .monospaced))
+                    .font(.system(size: 21, weight: .heavy))
+                    .monospacedDigit()
                     .foregroundStyle(Color.textPrimary)
                     .contentTransition(.numericText())
                     .animation(.easeInOut(duration: 0.3), value: detailVM.livePrice)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
 
-                dayChangeBadge
+                Text(String(format: "%@%.2f%% %@", detailVM.priceChange >= 0 ? "+" : "", detailVM.priceChange, lm.t("detail.today_suffix")))
+                    .font(.system(size: 12, weight: .bold))
+                    .monospacedDigit()
+                    .foregroundStyle(detailVM.priceChange.gainTextColor)
             }
         }
         .padding(.top, 8)
     }
 
-    @ViewBuilder
-    private var dayChangeBadge: some View {
-        let pct = inv.isWatchlist ? detailVM.priceChange : detailVM.gainPercent(mode: priceSourceMode)
-        HStack(spacing: 3) {
-            Image(systemName: pct >= 0 ? "arrowtriangle.up.fill" : "arrowtriangle.down.fill")
-                .font(.system(size: 9))
-            Text(String(format: "%@%.2f%%", pct >= 0 ? "+" : "", pct))
-                .font(.system(size: 13, weight: .bold, design: .monospaced))
+    // MARK: - Chart card
+
+    private var chartCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ChartView(
+                symbol:     inv.symbol,
+                coinId:     detailVM.coinId,
+                isPositive: inv.isWatchlist ? (detailVM.priceChange >= 0) : (detailVM.gainLoss(mode: priceSourceMode) >= 0),
+                priceAdjustmentFactor: inv.priceAdjustmentFactor,
+                displayBrokerAdjustedChart: priceSourceMode == .brokerAdjusted
+            )
+
+            HStack {
+                OverlineLabel(lm.t("sort.today"))
+                Spacer()
+                Text(String(format: "%@%.2f%%", detailVM.priceChange >= 0 ? "+" : "", detailVM.priceChange))
+                    .font(.system(size: 10.5, weight: .bold))
+                    .monospacedDigit()
+                    .foregroundStyle(detailVM.priceChange.gainTextColor)
+            }
         }
-        .foregroundStyle(pct.gainColor)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 5)
-        .background(pct.gainColor.opacity(0.12))
-        .clipShape(Capsule())
+        .cardStyle()
     }
 
-    // MARK: - Position card
+    // MARK: - Position / Watchlist context
 
+    @ViewBuilder
     private var positionCard: some View {
+        if inv.isWatchlist {
+            watchlistSection
+        } else {
+            ownedPositionCard
+        }
+    }
+
+    /// "YOUR POSITION" card — mint 7% fill, mint 14% border, radius 18.
+    private var ownedPositionCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            if inv.isWatchlist {
-                // Watchlist Item Status
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(lm.t("detail.watchlist_item"))
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(Color(hex: "#6366f1"))
-                            .tracking(1.1)
-                        Text(inv.name)
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(Color.textPrimary)
-                    }
-                    Spacer()
-                    Image(systemName: "eye.fill")
-                        .font(.system(size: 20))
-                        .foregroundStyle(Color(hex: "#6366f1"))
+            OverlineLabel(lm.t("detail.meine_position"), color: Color.mintAccent.opacity(0.7))
+
+            HStack(alignment: .top) {
+                statColumn(lm.t("detail.stueck"), value: String(format: "%.4g", inv.shares))
+                Spacer(minLength: 10)
+                statColumn(lm.t("detail.kaufpreis"), value: CurrencyService.shared.format(value: inv.buyPrice, from: inv.nativeCurrency))
+                Spacer(minLength: 10)
+                statColumn(lm.t("detail.gewinn_verlust"),
+                           value: String(format: "%@%.1f%%",
+                                         detailVM.gainPercent(mode: priceSourceMode) >= 0 ? "+" : "",
+                                         detailVM.gainPercent(mode: priceSourceMode)),
+                           color: detailVM.gainLoss(mode: priceSourceMode).gainTextColor,
+                           alignment: .trailing)
+            }
+
+            Rectangle()
+                .fill(Color.separatorHair)
+                .frame(height: 0.5)
+
+            HStack(alignment: .top) {
+                statColumn(lm.t("detail.aktuelle_wert"),
+                           value: CurrencyService.shared.format(value: detailVM.currentValue(mode: priceSourceMode), from: inv.nativeCurrency))
+                Spacer(minLength: 10)
+                statColumn(lm.t("detail.gewinn_verlust"),
+                           value: String(format: "%@%@",
+                                         detailVM.gainLoss(mode: priceSourceMode) >= 0 ? "+" : "−",
+                                         CurrencyService.shared.format(value: abs(detailVM.gainLoss(mode: priceSourceMode)), from: inv.nativeCurrency)),
+                           color: detailVM.gainLoss(mode: priceSourceMode).gainTextColor)
+                Spacer(minLength: 10)
+                statColumn(lm.t("detail.kaufdatum"), value: inv.buyDate, alignment: .trailing)
+            }
+        }
+        .padding(16)
+        .background {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color.mintAccent.opacity(0.07))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .strokeBorder(Color.mintAccent.opacity(0.14), lineWidth: 1)
+                )
+        }
+    }
+
+    /// Watchlist context: dashed ghost info strip + convert flow.
+    private var watchlistSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Dashed info strip
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: "circle.dashed")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(Color.labelSecondary)
+                    Text(lm.t("detail.watchlist_ghost_info"))
+                        .font(.system(size: 12.5, weight: .medium))
+                        .foregroundStyle(Color.labelSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 if let alert = alertStore.alert(for: inv.id), alert.isEnabled {
                     HStack(spacing: 7) {
                         Image(systemName: "bell.badge.fill")
                             .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(Color(hex: "#818cf8"))
+                            .foregroundStyle(Color.mintAccent)
                         Text(alertSummary(alert))
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(Color.textSecondary)
+                            .monospacedDigit()
+                            .foregroundStyle(Color.labelSecondary)
                             .lineLimit(1)
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 7)
-                    .background(Color(hex: "#6366f1").opacity(0.10))
-                    .clipShape(Capsule())
+                    .background(Capsule().fill(Color.white.opacity(0.06)))
+                    .overlay(Capsule().strokeBorder(Color.white.opacity(0.10), lineWidth: 0.5))
                 }
-                
-                Divider().background(Color.borderHair)
-                
-                if !showBuyInputs {
-                    // "Buy (Move to Portfolio)" Button
-                    Button {
-                        // Prefill price if available
-                        if buyPriceText.isEmpty && detailVM.livePrice > 0 {
-                            buyPriceText = String(format: "%.2f", detailVM.livePrice)
-                        }
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                            showBuyInputs = true
-                        }
-                        haptic()
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.system(size: 16, weight: .semibold))
-                            Text(lm.t("actions.convert"))
-                                .font(.system(size: 14, weight: .bold))
-                        }
-                        .foregroundStyle(Color.textPrimary)
-                        .padding(.vertical, 12)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color.white.opacity(0.025))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .strokeBorder(
+                                Color(hex: "#EBEBF5").opacity(0.16),
+                                style: StrokeStyle(lineWidth: 1, dash: [5, 4])
+                            )
+                    )
+            }
+
+            if !showBuyInputs {
+                // Convert to Position — prominent mint glass, dark ink
+                Button {
+                    // Prefill price if available
+                    if buyPriceText.isEmpty && detailVM.livePrice > 0 {
+                        buyPriceText = String(format: "%.2f", detailVM.livePrice)
+                    }
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                        showBuyInputs = true
+                    }
+                    haptic()
+                } label: {
+                    Text(lm.t("detail.convert_to_position"))
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(Color.mintInk)
                         .frame(maxWidth: .infinity)
-                        .background {
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(Color.jade.opacity(0.15))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                        .strokeBorder(Color.jade.opacity(0.35), lineWidth: 0.8)
-                                )
-                        }
-                    }
-                    .buttonStyle(.plain)
-                } else {
-                    // Inline buy fields: Shares, Price, Date
-                    VStack(spacing: 12) {
-                        // Shares
-                        HStack {
-                            Text(lm.t("add.stueckzahl"))
-                                .font(.system(size: 14))
-                                .foregroundStyle(Color.textSecondary)
-                            Spacer()
-                            TextField("1.0", text: $buySharesText)
-                                .keyboardType(.decimalPad)
-                                .multilineTextAlignment(.trailing)
-                                .font(.system(size: 14, weight: .semibold, design: .monospaced))
-                                .foregroundStyle(Color.jade)
-                                .frame(maxWidth: 120)
-                        }
-                        
-                        Divider().background(Color.borderHair)
-                        
-                        // Price
-                        HStack {
-                            Text(lm.t("add.kaufpreis_eur").replacingOccurrences(of: " (€)", with: "").replacingOccurrences(of: " ($)", with: ""))
-                                .font(.system(size: 14))
-                                .foregroundStyle(Color.textSecondary)
-                            Spacer()
-                            TextField("0.00", text: $buyPriceText)
-                                .keyboardType(.decimalPad)
-                                .multilineTextAlignment(.trailing)
-                                .font(.system(size: 14, weight: .semibold, design: .monospaced))
-                                .foregroundStyle(Color.jade)
-                                .frame(maxWidth: 120)
-                        }
-                        
-                        Divider().background(Color.borderHair)
-                        
-                        // Date Picker
-                        DatePicker(lm.t("detail.kaufdatum"),
-                                   selection: $buyDate,
-                                   in: ...Date(),
-                                   displayedComponents: .date)
-                            .datePickerStyle(.compact)
-                            .tint(.jade)
-                            .foregroundStyle(Color.textSecondary)
-                            .font(.system(size: 14))
-                        
-                        Divider().background(Color.borderHair)
-                        
-                        // Cancel / Confirm buttons
-                        HStack(spacing: 12) {
-                            Button {
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                                    showBuyInputs = false
-                                }
-                                haptic()
-                            } label: {
-                                Text(lm.t("add.abbrechen"))
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundStyle(Color.textMuted)
-                                    .padding(.vertical, 10)
-                                    .frame(maxWidth: .infinity)
-                                    .background {
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.8)
-                                    }
-                            }
-                            .buttonStyle(.plain)
-                            
-                            let valShares = Double(buySharesText.replacingOccurrences(of: ",", with: ".")) ?? 0.0
-                            let valPrice = Double(buyPriceText.replacingOccurrences(of: ",", with: ".")) ?? 0.0
-                            let canConfirm = valShares > 0 && valPrice > 0
-                            
-                            Button {
-                                guard canConfirm else { return }
-                                let fmt = DateFormatter()
-                                fmt.dateFormat = "yyyy-MM-dd"
-                                onBuy?(valShares, valPrice, fmt.string(from: buyDate))
-                                haptic(.rigid)
-                                dismiss()
-                            } label: {
-                                Text(lm.t("common.fertig"))
-                                    .font(.system(size: 13, weight: .bold))
-                                    .foregroundStyle(canConfirm ? Color.textPrimary : Color.textMuted)
-                                    .padding(.vertical, 10)
-                                    .frame(maxWidth: .infinity)
-                                    .background {
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .fill(canConfirm ? Color.jade.opacity(0.2) : Color.white.opacity(0.04))
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 10)
-                                                    .strokeBorder(canConfirm ? Color.jade.opacity(0.4) : Color.white.opacity(0.1), lineWidth: 0.8)
-                                            )
-                                    }
-                            }
-                            .buttonStyle(.plain)
-                            .disabled(!canConfirm)
-                        }
-                        .padding(.top, 6)
-                    }
                 }
+                .buttonStyle(.glassProminent)
+                .tint(Color.mintAccent)
+                .controlSize(.large)
+                .buttonBorderShape(.capsule)
             } else {
-                Text(lm.t("detail.meine_position"))
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(Color.textMuted)
-                    .tracking(1.1)
-
-                HStack {
-                    infoCell(lm.t("detail.stueck"),      value: String(format: "%.4g", inv.shares))
-                    Spacer()
-                    infoCell(lm.t("detail.kaufpreis"), value: CurrencyService.shared.format(value: inv.buyPrice, from: inv.nativeCurrency))
-                    Spacer()
-                    infoCell(lm.t("detail.kaufdatum"),  value: inv.buyDate)
-                }
-
-                Divider().background(Color.borderHair)
-
-                HStack {
-                    infoCell(lm.t("detail.aktuelle_wert"),
-                             value: CurrencyService.shared.format(value: detailVM.currentValue(mode: priceSourceMode), from: inv.nativeCurrency),
-                             color: .textPrimary)
-                    Spacer()
-                    infoCell(lm.t("detail.gewinn_verlust"),
-                             value: String(format: "%@%@ (%@%.1f%%)",
-                                           detailVM.gainLoss(mode: priceSourceMode) >= 0 ? "+" : "",
-                                           CurrencyService.shared.format(value: abs(detailVM.gainLoss(mode: priceSourceMode)), from: inv.nativeCurrency),
-                                           detailVM.gainPercent(mode: priceSourceMode) >= 0 ? "+" : "",
-                                           detailVM.gainPercent(mode: priceSourceMode)),
-                             color: detailVM.gainLoss(mode: priceSourceMode).gainColor)
-                }
+                buyInputsCard
             }
         }
-        .cardStyle()
     }
 
-    // MARK: - Market info
+    /// Inline convert form — inset grouped rows on opaque surface.
+    private var buyInputsCard: some View {
+        let valShares = Double(buySharesText.replacingOccurrences(of: ",", with: ".")) ?? 0.0
+        let valPrice = Double(buyPriceText.replacingOccurrences(of: ",", with: ".")) ?? 0.0
+        let canConfirm = valShares > 0 && valPrice > 0
 
-    private var marketInfoCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(lm.t("detail.marktdaten"))
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(Color.textMuted)
-                .tracking(1.1)
+        return VStack(spacing: 12) {
+            VStack(spacing: 0) {
+                formNumberRow(label: lm.t("add.stueckzahl"), placeholder: "0.00", text: $buySharesText)
 
-            HStack {
-                infoCell(lm.t("detail.symbol"),   value: inv.symbol)
-                Spacer()
-                infoCell(lm.t("detail.typ"),      value: detailVM.coinId != nil ? lm.t("detail.crypto") : lm.t("detail.aktie"))
-                Spacer()
-                infoCell(lm.t("detail.quelle"),   value: detailVM.coinId != nil ? "CoinGecko" : "Finnhub")
+                Rectangle().fill(Color.separatorHair).frame(height: 0.5)
+
+                formNumberRow(
+                    label: lm.t("add.kaufpreis_eur").replacingOccurrences(of: " (€)", with: "").replacingOccurrences(of: " ($)", with: ""),
+                    placeholder: "0.00",
+                    text: $buyPriceText
+                )
+
+                Rectangle().fill(Color.separatorHair).frame(height: 0.5)
+
+                DatePicker(lm.t("detail.kaufdatum"),
+                           selection: $buyDate,
+                           in: ...Date(),
+                           displayedComponents: .date)
+                    .datePickerStyle(.compact)
+                    .tint(.mintAccent)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Color.labelSecondary)
+                    .padding(.vertical, 8)
+
+                if canConfirm {
+                    HStack {
+                        Spacer()
+                        Text("≈ \(CurrencyService.shared.format(value: valShares * valPrice, from: inv.nativeCurrency))")
+                            .font(.system(size: 12, weight: .semibold))
+                            .monospacedDigit()
+                            .foregroundStyle(Color.labelTertiary)
+                    }
+                    .padding(.bottom, 4)
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 4)
+            .background {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color.surface)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5)
+                    )
+            }
+
+            // Cancel / Confirm buttons
+            HStack(spacing: 12) {
+                Button {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                        showBuyInputs = false
+                    }
+                    haptic()
+                } label: {
+                    Text(lm.t("add.abbrechen"))
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Color.textPrimary)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.glass)
+                .controlSize(.large)
+                .buttonBorderShape(.capsule)
+
+                Button {
+                    guard canConfirm else { return }
+                    let fmt = DateFormatter()
+                    fmt.dateFormat = "yyyy-MM-dd"
+                    onBuy?(valShares, valPrice, fmt.string(from: buyDate))
+                    haptic(.rigid)
+                    dismiss()
+                } label: {
+                    Text(lm.t("common.fertig"))
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(Color.mintInk)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.glassProminent)
+                .tint(Color.mintAccent)
+                .controlSize(.large)
+                .buttonBorderShape(.capsule)
+                .disabled(!canConfirm)
             }
         }
-        .cardStyle()
     }
+
+    // MARK: - Statistics grid
+
+    private var statisticsCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            OverlineLabel(lm.t("detail.marktdaten"))
+
+            statRow(
+                leftKey: lm.t("detail.symbol"), leftValue: inv.symbol,
+                rightKey: lm.t("detail.typ"), rightValue: detailVM.coinId != nil ? lm.t("detail.crypto") : lm.t("detail.aktie")
+            )
+
+            Rectangle()
+                .fill(Color.separatorHair)
+                .frame(height: 0.5)
+
+            statRow(
+                leftKey: lm.t("detail.quelle"), leftValue: detailVM.coinId != nil ? "CoinGecko" : "Yahoo Finance",
+                rightKey: inv.isWatchlist ? nil : lm.t("detail.kaufdatum"),
+                rightValue: inv.isWatchlist ? nil : inv.buyDate
+            )
+        }
+        .cardStyle(cornerRadius: 20)
+    }
+
+    @ViewBuilder
+    private func statRow(leftKey: String, leftValue: String, rightKey: String?, rightValue: String?) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            statColumn(leftKey, value: leftValue)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if let rightKey, let rightValue {
+                statColumn(rightKey, value: rightValue)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                Color.clear
+                    .frame(maxWidth: .infinity, maxHeight: 1)
+            }
+        }
+    }
+
+    // MARK: - Actions
 
     private var actionSection: some View {
         VStack(spacing: 12) {
-            // Edit Position Button (only for active investments)
+            // Edit Position (only for active investments) — neutral glass
             if !inv.isWatchlist && onEdit != nil {
                 Button {
                     showEditSheet = true
                     haptic()
                 } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: "pencil")
-                            .font(.system(size: 15, weight: .semibold))
-                        Text(lm.t("actions.edit"))
-                            .font(.system(size: 15, weight: .semibold))
-                    }
-                    .foregroundStyle(Color.jade)
-                    .padding(.vertical, 14)
-                    .frame(maxWidth: .infinity)
-                    .background {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(Color.jade.opacity(0.08))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .strokeBorder(Color.jade.opacity(0.25), lineWidth: 0.7)
-                            )
-                    }
+                    Text(lm.t("detail.edit_position"))
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Color.textPrimary)
+                        .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.glass)
+                .controlSize(.large)
+                .buttonBorderShape(.capsule)
             }
 
+            // Set Price Alert (watchlist) — neutral glass
             if inv.isWatchlist {
                 Button {
                     showAlertSheet = true
                     haptic()
                 } label: {
-                    HStack(spacing: 10) {
+                    HStack(spacing: 8) {
                         Image(systemName: "bell.badge")
-                            .font(.system(size: 15, weight: .semibold))
+                            .font(.system(size: 14, weight: .semibold))
                         Text(lm.t("alerts.setAlert"))
                             .font(.system(size: 15, weight: .semibold))
                     }
-                    .foregroundStyle(Color(hex: "#818cf8"))
-                    .padding(.vertical, 14)
+                    .foregroundStyle(Color.textPrimary)
                     .frame(maxWidth: .infinity)
-                    .background {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(Color(hex: "#6366f1").opacity(0.10))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .strokeBorder(Color(hex: "#818cf8").opacity(0.28), lineWidth: 0.7)
-                            )
-                    }
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.glass)
+                .controlSize(.large)
+                .buttonBorderShape(.capsule)
             }
 
-            // Pop Bubble (or fallback to Remove if Pop is missing)
+            // Pop Bubble / Remove — destructive loss-tinted glass
             if let action = inv.isWatchlist ? onDelete : (onPop ?? onDelete) {
                 let isPop = !inv.isWatchlist && onPop != nil
                 Button {
                     haptic(.rigid)
                     action()
                 } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: isPop ? "circle.dotted.and.circle" : "trash.fill")
-                            .font(.system(size: 17, weight: .semibold))
+                    HStack(spacing: 8) {
+                        Image(systemName: isPop ? "circle.dotted.and.circle" : "trash")
+                            .font(.system(size: 14, weight: .semibold))
                         Text(isPop ? lm.t("actions.popBubble") : lm.t("actions.remove"))
                             .font(.system(size: 15, weight: .semibold))
                     }
-                    .foregroundStyle(isPop ? Color.orange : Color.crimson)
-                    .padding(.vertical, 14)
+                    .foregroundStyle(Color.lossText)
                     .frame(maxWidth: .infinity)
-                    .background {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill((isPop ? Color.orange : Color.crimson).opacity(0.08))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .strokeBorder((isPop ? Color.orange : Color.crimson).opacity(0.25), lineWidth: 0.7)
-                            )
-                    }
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.glass)
+                .tint(Color.lossBase)
+                .controlSize(.large)
+                .buttonBorderShape(.capsule)
             }
         }
     }
 
-    // MARK: - Info cell
+    // MARK: - Cells & rows
 
     @ViewBuilder
-    private func infoCell(_ title: String, value: String, color: Color = .textSecondary) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.system(size: 10))
-                .foregroundStyle(Color.textMuted)
+    private func statColumn(_ title: String, value: String, color: Color = .textPrimary, alignment: HorizontalAlignment = .leading) -> some View {
+        VStack(alignment: alignment, spacing: 4) {
+            Text(title.uppercased())
+                .font(.system(size: 11, weight: .semibold))
+                .tracking(0.6)
+                .foregroundStyle(Color.labelTertiary)
+                .lineLimit(1)
             Text(value)
-                .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                .font(.system(size: 14.5, weight: .semibold))
+                .monospacedDigit()
                 .foregroundStyle(color)
                 .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .minimumScaleFactor(0.75)
         }
+    }
+
+    @ViewBuilder
+    private func formNumberRow(label: String, placeholder: String, text: Binding<String>) -> some View {
+        HStack {
+            Text(label)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Color.labelSecondary)
+            Spacer()
+            TextField(placeholder, text: text)
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.trailing)
+                .font(.system(size: 16, weight: .semibold))
+                .monospacedDigit()
+                .foregroundStyle(Color.mintAccent)
+                .frame(maxWidth: 140)
+        }
+        .padding(.vertical, 12)
     }
 
     private func alertSummary(_ alert: PriceAlert) -> String {

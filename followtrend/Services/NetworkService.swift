@@ -46,7 +46,14 @@ final class NetworkService {
 
     // Generic JSON fetch
     func fetch<T: Decodable>(_ url: URL) async throws -> T {
-        let (data, response) = try await session.data(from: url)
+        var request = URLRequest(url: url)
+        
+        // Attach shared secret if talking to our proxy server
+        if url.absoluteString.hasPrefix(APIConfig.proxyBaseURL) {
+            request.addValue("Bearer \(APIConfig.proxySecret)", forHTTPHeaderField: "Authorization")
+        }
+        
+        let (data, response) = try await session.data(for: request)
 
         if let http = response as? HTTPURLResponse {
             switch http.statusCode {

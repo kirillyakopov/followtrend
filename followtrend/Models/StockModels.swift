@@ -96,7 +96,7 @@ struct Investment: Identifiable, Codable, Hashable {
         brokerPrice: Double,
         brokerCurrency: AppCurrency,
         displayCurrency: AppCurrency,
-        currencyService: CurrencyService = .shared
+        currencyService: CurrencyService
     ) -> Double? {
         guard apiPrice > 0, brokerPrice > 0 else { return nil }
         let apiConverted = currencyService.convert(value: apiPrice, from: apiCurrency, to: displayCurrency)
@@ -109,7 +109,7 @@ struct Investment: Identifiable, Codable, Hashable {
     static func fxRate(
         from sourceCurrency: AppCurrency,
         to targetCurrency: AppCurrency,
-        currencyService: CurrencyService = .shared
+        currencyService: CurrencyService
     ) -> Double {
         currencyService.convert(value: 1, from: sourceCurrency, to: targetCurrency)
     }
@@ -205,12 +205,13 @@ enum SpawnState: String, Codable {
 
 struct BubbleParticle: Identifiable, Equatable {
     let id: String          // matches Investment.id or BubbleCluster.id
-    let symbol: String
+    var symbol: String
     var gain: Double
     var radius: CGFloat
     var position: CGPoint
     var velocity: CGVector
     var isWatchlist: Bool
+    var name: String? = nil
     var spawnState: SpawnState = .active
     var spawnProgress: Double = 1.0
     
@@ -249,4 +250,5 @@ struct BubbleRenderSnapshot: Equatable {
     var particles: [BubbleParticle] = []
     var connections: [BubbleConnection] = []
     var clusters: [BubbleCluster] = []
+    var baseParticles: [BubbleParticle] = []
 }

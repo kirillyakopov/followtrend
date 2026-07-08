@@ -199,7 +199,8 @@ final class AppLanguageManager: ObservableObject {
               "title": "Restore the last popped bubble?"
             }
           },
-          "einzel": { "depot": "PORTFOLIO", "rendite": "RETURN", "live": "Live", "tippe_ziehen": "Tap · Drag to move" },
+          "bubbles": { "interactionHint": "Tap & drag to move · Hold to select or create clusters" },
+          "einzel": { "depot": "PORTFOLIO", "rendite": "RETURN", "live": "Live" },
           "detail": {
             "meine_position": "MY POSITION", "stueck": "Shares", "kaufpreis": "Avg Price",
             "kaufdatum": "Buy Date", "aktuelle_wert": "Current Value", "gewinn_verlust": "Profit/Loss",
@@ -223,7 +224,7 @@ final class AppLanguageManager: ObservableObject {
             "daten_apple_verknuepft": "Your data is securely linked to your Apple ID.",
             "sprache": "Language"
           },
-          "common": { "fertig": "Done" },
+          "common": { "fertig": "Done", "abbrechen": "Cancel", "speichern": "Save" },
           "pearson": {
             "title": "Pearson Correlation",
             "badges": {
@@ -292,7 +293,10 @@ final class AppLanguageManager: ObservableObject {
             "stockCluster": "Stock Cluster",
             "etfCluster": "ETF Cluster",
             "cryptoCluster": "Crypto Cluster",
-            "correlationCluster": "Correlation Cluster"
+            "correlationCluster": "Correlation Cluster",
+            "renameCluster": "Rename Cluster",
+            "renameClusterDesc": "Enter a new name for this cluster.",
+            "clusterName": "Cluster Name"
           }
         }
         """

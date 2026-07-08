@@ -5,39 +5,98 @@
 
 import SwiftUI
 
+// MARK: - Allocation segment palette (README §1.6 — top-5 by weight, in order)
+
+enum AllocationPalette {
+    static let segments: [Color] = [
+        Color.mintAccent,
+        Color.mintAccent.opacity(0.55),
+        Color.white.opacity(0.66),
+        Color.white.opacity(0.34),
+        Color.white.opacity(0.16)
+    ]
+
+    static func color(_ rank: Int) -> Color {
+        segments[max(0, min(rank, segments.count - 1))]
+    }
+}
+
+// MARK: - Allocation donut (92pt, ring thickness ≈ 38% of radius)
+
+struct AllocationDonut: View {
+    /// Slices pre-ranked by weight (heaviest first); at most the first 5 are drawn.
+    let slices: [AssetAllocationSlice]
+    var diameter: CGFloat = 92
+
+    var body: some View {
+        let thickness = (diameter / 2) * 0.38
+        let ringDiameter = diameter - thickness
+
+        ZStack {
+            Circle()
+                .stroke(Color.white.opacity(0.06), lineWidth: thickness)
+
+            ForEach(Array(segments.enumerated()), id: \.offset) { index, segment in
+                Circle()
+                    .trim(from: segment.start, to: segment.end)
+                    .stroke(
+                        AllocationPalette.color(index),
+                        style: StrokeStyle(lineWidth: thickness, lineCap: .butt)
+                    )
+            }
+        }
+        .frame(width: ringDiameter, height: ringDiameter)
+        .rotationEffect(.degrees(-90))
+        .frame(width: diameter, height: diameter)
+    }
+
+    private var segments: [(start: CGFloat, end: CGFloat)] {
+        let ranked = Array(slices.prefix(AllocationPalette.segments.count))
+        let total = max(ranked.reduce(0) { $0 + $1.percentage }, 0.0001)
+        var cursor: Double = 0
+        return ranked.map { slice in
+            let fraction = slice.percentage / total
+            defer { cursor += fraction }
+            return (CGFloat(cursor), CGFloat(cursor + fraction))
+        }
+    }
+}
+
+// MARK: - Asset allocation card
+
 struct AssetAllocationChartView: View {
     let slices: [AssetAllocationSlice]
 
     @EnvironmentObject private var lm: AppLanguageManager
     @State private var expandedCategory: AssetCategory?
 
+    private var rankedSlices: [AssetAllocationSlice] {
+        slices.sorted { $0.percentage > $1.percentage }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text(lm.t("allocation.title"))
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(Color.textMuted)
-                    .tracking(1.1)
+                OverlineLabel(lm.t("allocation.title"))
                 Spacer()
                 Text(lm.t("allocation.excludesWatchlist"))
                     .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(Color.textMuted)
+                    .foregroundStyle(Color.labelTertiary)
             }
 
             if slices.isEmpty {
                 Text(lm.t("allocation.empty"))
-                    .font(.system(size: 13))
-                    .foregroundStyle(Color.textMuted)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(Color.labelTertiary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 24)
             } else {
-                VStack(alignment: .center, spacing: 14) {
-                    stackedCapsuleBar
-                        .frame(maxWidth: .infinity, alignment: .center)
+                HStack(alignment: .center, spacing: 18) {
+                    AllocationDonut(slices: rankedSlices, diameter: 92)
 
                     VStack(spacing: 10) {
-                        ForEach(slices) { slice in
-                            allocationRow(slice)
+                        ForEach(Array(rankedSlices.enumerated()), id: \.element.id) { index, slice in
+                            allocationRow(slice, rank: index)
                         }
                     }
                     .frame(maxWidth: .infinity)
@@ -55,60 +114,32 @@ struct AssetAllocationChartView: View {
         .animation(.easeInOut(duration: 0.35), value: slices)
     }
 
-    private var stackedCapsuleBar: some View {
-        GeometryReader { geo in
-            HStack(spacing: 4) {
-                ForEach(slices) { slice in
-                    Capsule(style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: gradientColors(for: slice.category),
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .frame(width: max(10, geo.size.width * slice.percentage / 100))
-                }
-            }
-            .padding(5)
-            .frame(maxWidth: .infinity, minHeight: 28, maxHeight: 28, alignment: .leading)
-            .background {
-                Capsule(style: .continuous)
-                    .fill(Color.white.opacity(0.045))
-                    .glassEffect(.regular.tint(Color.jade.opacity(0.035)), in: .capsule)
-            }
-            .overlay(
-                Capsule(style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.7)
-            )
-        }
-        .frame(height: 28)
-    }
-
-    private func allocationRow(_ slice: AssetAllocationSlice) -> some View {
+    private func allocationRow(_ slice: AssetAllocationSlice, rank: Int) -> some View {
         Button {
             haptic(.light)
             expandedCategory = expandedCategory == slice.category ? nil : slice.category
         } label: {
             HStack(spacing: 10) {
                 Circle()
-                    .fill(LinearGradient(colors: gradientColors(for: slice.category), startPoint: .topLeading, endPoint: .bottomTrailing))
-                    .frame(width: 9, height: 9)
+                    .fill(AllocationPalette.color(rank))
+                    .frame(width: 8, height: 8)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(lm.t(slice.category.localizationKey))
-                        .font(AppTypography.label)
-                        .foregroundStyle(AppColorPalette.primaryText)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Color.textPrimary)
                     Text(CurrencyService.shared.formatConverted(slice.value))
-                        .font(.system(size: 11, weight: .medium, design: .monospaced))
-                        .foregroundStyle(AppColorPalette.mutedText)
+                        .font(.system(size: 11, weight: .medium))
+                        .monospacedDigit()
+                        .foregroundStyle(Color.labelTertiary)
                 }
 
                 Spacer()
 
                 Text(String(format: "%.1f%%", slice.percentage))
-                    .font(AppTypography.number)
-                    .foregroundStyle(AppColorPalette.secondaryText)
+                    .font(.system(size: 12, weight: .semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(Color.labelSecondary)
             }
         }
         .buttonStyle(.plain)
@@ -123,25 +154,12 @@ struct AssetAllocationChartView: View {
                         .foregroundStyle(Color.textPrimary)
                     Spacer()
                     Text(asset.name)
-                        .font(.system(size: 11))
-                        .foregroundStyle(Color.textMuted)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Color.labelTertiary)
                         .lineLimit(1)
                 }
             }
         }
         .padding(.top, 4)
-    }
-
-    private func gradientColors(for category: AssetCategory) -> [Color] {
-        switch category {
-        case .stocks:
-            return [Color.jade, Color(hex: "#5eead4")]
-        case .etfs:
-            return [Color(hex: "#34d399"), Color(hex: "#86efac")]
-        case .crypto:
-            return [Color(hex: "#2dd4bf"), Color(hex: "#0f766e")]
-        case .stablecoins:
-            return [Color(hex: "#86a69a"), Color(hex: "#9ccfbe")]
-        }
     }
 }

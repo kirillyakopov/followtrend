@@ -2,8 +2,8 @@
 //  ChartView.swift
 //  followtrend
 //
-//  Real OHLC/close chart with loading skeleton, error fallback,
-//  gradient fill, smooth animations, and timeframe switching.
+//  Real OHLC/close chart with loading state, error fallback,
+//  gradient fill, scrub interaction, and timeframe switching.
 //
 
 import SwiftUI
@@ -20,19 +20,17 @@ struct ChartView: View {
     @State private var chartState: ChartLoadState = .idle
     @State private var timeframe:  Timeframe = .oneMonth
     @State private var loadTask:   Task<Void, Never>?
+    @State private var scrubIndex: Int? = nil
 
-    private var accent: Color { isPositive ? .jade : .crimson }
+    private var accent: Color { isPositive ? .mintAccent : .lossBase }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Timeframe strip
-            timeframeBar
-
             // Chart area
             Group {
                 switch chartState {
                 case .idle, .loading:
-                    shimmerSkeleton
+                    loadingView
                 case .loaded(let points):
                     lineChart(points: points)
                         .transition(.opacity.combined(with: .scale(scale: 0.98)))
@@ -40,60 +38,30 @@ struct ChartView: View {
                     errorView(msg)
                 }
             }
-            .frame(height: 150)
+            .frame(height: 118)
             .animation(.easeInOut(duration: 0.4), value: chartState.isLoading)
+
+            // Time selector (capsule segmented control)
+            timeframeBar
+                .padding(.top, 14)
         }
         .onAppear { load() }
         .onChange(of: timeframe) { _, _ in load() }
     }
 
-    @Namespace private var tfNamespace
-
-    // MARK: - Timeframe bar
+    // MARK: - Timeframe bar (native segmented control)
 
     private var timeframeBar: some View {
-        HStack(spacing: 4) {
+        Picker("", selection: $timeframe) {
             ForEach(Timeframe.allCases) { tf in
-                let isActive = timeframe == tf
-                Button {
-                    withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) {
-                        timeframe = tf
-                    }
-                    haptic(.soft)
-                } label: {
-                    Text(tf.rawValue)
-                        .font(.system(size: 12, weight: isActive ? .bold : .semibold))
-                        .foregroundStyle(isActive ? Color.jade : Color.textMuted)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                        .background {
-                            if isActive {
-                                Capsule()
-                                    .fill(.ultraThinMaterial)
-                                    .glassEffect(.regular.tint(Color.jade.opacity(0.15)), in: .capsule)
-                                    .shadow(color: Color.jade.opacity(0.22), radius: 6, y: 2)
-                                    .matchedGeometryEffect(id: "timeframeActive", in: tfNamespace)
-                            }
-                        }
-                        .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
+                Text(tf.rawValue).tag(tf)
             }
         }
-        .padding(4)
-        .background {
-            Capsule()
-                .fill(.ultraThinMaterial)
-                .glassEffect(.regular.tint(Color.jade.opacity(0.02)), in: .capsule)
-        }
-        .overlay {
-            Capsule()
-                .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5)
-        }
-        .padding(.bottom, 12)
+        .pickerStyle(.segmented)
+        .sensoryFeedback(.selection, trigger: timeframe)
     }
 
-    // MARK: - Line chart
+    // MARK: - Line chart (§1.4 treatment)
 
     @ViewBuilder
     private func lineChart(points: [ChartPoint]) -> some View {
@@ -103,48 +71,88 @@ struct ChartView: View {
             let first  = closes.first ?? 0
             let last   = closes.last  ?? 0
             let trend  = last >= first
+            let lineColor = trend ? Color.mintAccent : Color.lossBase
 
             ZStack {
-                // Gradient fill
-                areaPath(mapped, size: geo.size)
+                // Dashed baseline at period start value
+                if let start = mapped.first {
+                    Path { p in
+                        p.move(to: CGPoint(x: 0, y: start.y))
+                        p.addLine(to: CGPoint(x: geo.size.width, y: start.y))
+                    }
+                    .stroke(Color.white.opacity(0.12), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                }
+
+                // Gradient area fill (accent 24% → 0)
+                ChartPathBuilder.area(points: mapped, height: geo.size.height)
                     .fill(
                         LinearGradient(
-                            colors: [
-                                (trend ? Color.jade : Color.crimson).opacity(0.28),
-                                .clear
-                            ],
+                            colors: [lineColor.opacity(0.24), .clear],
                             startPoint: .top, endPoint: .bottom
                         )
                     )
 
-                // Line stroke
-                linePath(mapped)
+                // Smoothed 2.4pt line
+                ChartPathBuilder.smoothedLine(mapped)
                     .stroke(
-                        trend ? Color.jade : Color.crimson,
-                        style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round)
+                        lineColor,
+                        style: StrokeStyle(lineWidth: 2.4, lineCap: .round, lineJoin: .round)
                     )
 
-                // End-dot
-                if let last = mapped.last {
+                // Scrub overlay
+                if let idx = scrubIndex, mapped.indices.contains(idx), closes.indices.contains(idx) {
+                    let pt = mapped[idx]
+
+                    // Vertical hairline
+                    Path { p in
+                        p.move(to: CGPoint(x: pt.x, y: 0))
+                        p.addLine(to: CGPoint(x: pt.x, y: geo.size.height))
+                    }
+                    .stroke(Color.white.opacity(0.34), lineWidth: 1)
+
+                    // 4.4pt-radius dot with 2pt dark ring
                     Circle()
-                        .fill(trend ? Color.jade : Color.crimson)
-                        .frame(width: 6, height: 6)
-                        .shadow(color: (trend ? Color.jade : Color.crimson).opacity(0.8), radius: 6)
-                        .position(last)
+                        .fill(lineColor)
+                        .frame(width: 8.8, height: 8.8)
+                        .overlay(Circle().stroke(Color.bgDeep, lineWidth: 2))
+                        .position(pt)
+
+                    // Floating tabular label — signed % vs. first visible point
+                    // (candle data is native-currency, so absolute values would
+                    // disagree with the FX-converted headers).
+                    Text(first == 0
+                         ? "—"
+                         : String(format: "%+.2f%%", (closes[idx] - first) / first * 100))
+                        .font(.system(size: 12, weight: .semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(Color.textPrimary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Capsule().fill(Color.surface))
+                        .overlay(Capsule().strokeBorder(Color.white.opacity(0.10), lineWidth: 0.5))
+                        .position(x: min(max(pt.x, 40), geo.size.width - 40), y: 12)
                 }
             }
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { g in
+                        guard closes.count > 1 else { return }
+                        let frac = max(0, min(1, g.location.x / max(geo.size.width, 1)))
+                        let idx = Int((frac * CGFloat(closes.count - 1)).rounded())
+                        if idx != scrubIndex { scrubIndex = idx }
+                    }
+                    .onEnded { _ in scrubIndex = nil }
+            )
         }
     }
 
-    // MARK: - Shimmer skeleton
+    // MARK: - Loading state (mint ProgressView)
 
-    private var shimmerSkeleton: some View {
-        RoundedRectangle(cornerRadius: 8, style: .continuous)
-            .fill(Color.bgElevated)
-            .overlay(
-                ShimmerView()
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            )
+    private var loadingView: some View {
+        ProgressView()
+            .tint(Color.mintAccent)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - Error view
@@ -152,23 +160,24 @@ struct ChartView: View {
     private func errorView(_ msg: String) -> some View {
         VStack(spacing: 10) {
             Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 22))
-                .foregroundStyle(Color.textMuted)
+                .font(.system(size: 20, weight: .medium))
+                .foregroundStyle(Color.labelTertiary)
             Text(msg)
-                .font(.system(size: 12))
-                .foregroundStyle(Color.textMuted)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Color.labelTertiary)
                 .multilineTextAlignment(.center)
-            Button("Retry") { load() }
+            Button(AppLanguageManager.shared.t("chart.retry")) { load() }
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(Color.jade)
+                .foregroundStyle(Color.mintAccent)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - Async data load
 
     private func load() {
         loadTask?.cancel()
+        scrubIndex = nil
         chartState = .loading
 
         loadTask = Task {
@@ -181,11 +190,11 @@ struct ChartView: View {
                 }
                 let displayPoints = adjustedPoints(points)
                 guard !Task.isCancelled else { return }
-                
+
                 await MainActor.run {
                     withAnimation {
                         if displayPoints.isEmpty {
-                            chartState = .error("No chart data available")
+                            chartState = .error(AppLanguageManager.shared.t("chart.no_data"))
                         } else {
                             chartState = .loaded(displayPoints)
                         }
@@ -219,7 +228,7 @@ struct ChartView: View {
         }
     }
 
-    // MARK: - Path helpers
+    // MARK: - Point mapping
 
     private func mapPoints(_ vals: [Double], in size: CGSize) -> [CGPoint] {
         guard vals.count > 1 else { return [] }
@@ -230,46 +239,6 @@ struct ChartView: View {
             let x = size.width * CGFloat(i) / CGFloat(vals.count - 1)
             let y = size.height - padY - CGFloat((v - lo) / span) * (size.height - padY * 2)
             return CGPoint(x: x, y: y)
-        }
-    }
-
-    private func linePath(_ pts: [CGPoint]) -> Path {
-        var p = Path()
-        guard let first = pts.first else { return p }
-        p.move(to: first)
-        for pt in pts.dropFirst() { p.addLine(to: pt) }
-        return p
-    }
-
-    private func areaPath(_ pts: [CGPoint], size: CGSize) -> Path {
-        var p = Path()
-        guard let first = pts.first, let last = pts.last else { return p }
-        p.move(to: CGPoint(x: first.x, y: size.height))
-        p.addLine(to: first)
-        for pt in pts.dropFirst() { p.addLine(to: pt) }
-        p.addLine(to: CGPoint(x: last.x, y: size.height))
-        p.closeSubpath()
-        return p
-    }
-}
-
-// MARK: - Shimmer animation
-
-struct ShimmerView: View {
-    @State private var phase: CGFloat = -1
-
-    var body: some View {
-        GeometryReader { geo in
-            LinearGradient(
-                colors: [.clear, .white.opacity(0.06), .clear],
-                startPoint: .init(x: phase, y: 0.5),
-                endPoint:   .init(x: phase + 0.4, y: 0.5)
-            )
-            .onAppear {
-                withAnimation(.linear(duration: 1.4).repeatForever(autoreverses: false)) {
-                    phase = 1.2
-                }
-            }
         }
     }
 }

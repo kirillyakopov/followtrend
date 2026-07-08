@@ -24,13 +24,7 @@ struct MarketSearchResult: Identifiable, Hashable {
     static func == (lhs: MarketSearchResult, rhs: MarketSearchResult) -> Bool { lhs.symbol == rhs.symbol }
 }
 
-// MARK: - Market Scope Enum
 
-enum MarketScope: Hashable {
-    case stocks
-    case etfs
-    case crypto
-}
 
 // MARK: - Market Search ViewModel
 
@@ -38,7 +32,6 @@ enum MarketScope: Hashable {
 final class MarketSearchViewModel: ObservableObject {
 
     @Published var query:          String = ""
-    @Published var selectedScope:  MarketScope = .stocks
     @Published var results:        [MarketSearchResult] = []
     @Published var isSearching:    Bool = false
     @Published var isFetchingPrice: Bool = false
@@ -52,20 +45,18 @@ final class MarketSearchViewModel: ObservableObject {
     private var priceTask:    Task<Void, Never>?
 
     init() {
-        Publishers.CombineLatest($query, $selectedScope)
+        $query
             .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
-            .removeDuplicates { lhs, rhs in
-                lhs.0 == rhs.0 && lhs.1 == rhs.1
-            }
-            .sink { [weak self] q, scope in
-                self?.performSearch(q, scope: scope)
+            .removeDuplicates()
+            .sink { [weak self] q in
+                self?.performSearch(q)
             }
             .store(in: &cancellables)
     }
 
     // MARK: - Search
 
-    private func performSearch(_ q: String, scope: MarketScope) {
+    private func performSearch(_ q: String) {
         searchTask?.cancel()
         let trimmed = q.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else {
@@ -77,17 +68,11 @@ final class MarketSearchViewModel: ObservableObject {
         isSearching = true
 
         searchTask = Task {
-            let stocks: [SearchResult]
-            let cryptos: [SearchResult]
-
-            switch scope {
-            case .stocks, .etfs:
-                stocks = (try? await stockService.searchSymbols(query: trimmed)) ?? []
-                cryptos = []
-            case .crypto:
-                stocks = []
-                cryptos = (try? await cryptoService.searchCoins(query: trimmed)) ?? []
-            }
+            async let fetchStocks = stockService.searchSymbols(query: trimmed)
+            async let fetchCryptos = cryptoService.searchCoins(query: trimmed)
+            
+            let stocks = (try? await fetchStocks) ?? []
+            let cryptos = (try? await fetchCryptos) ?? []
 
             guard !Task.isCancelled else { return }
 
@@ -95,25 +80,13 @@ final class MarketSearchViewModel: ObservableObject {
             var seen = Set<String>()
             var merged: [MarketSearchResult] = []
             for r in (stocks + cryptos) where !seen.contains(r.symbol) {
-                let kindMatches: Bool
-                switch scope {
-                case .stocks:
-                    kindMatches = (r.kind == .stock)
-                case .etfs:
-                    kindMatches = (r.kind == .etf)
-                case .crypto:
-                    kindMatches = (r.kind == .crypto)
-                }
-
-                if kindMatches {
-                    merged.append(MarketSearchResult(
-                        symbol: r.symbol,
-                        name:   r.name,
-                        kind:   r.kind,
-                        coinId: r.coinId
-                    ))
-                    seen.insert(r.symbol)
-                }
+                merged.append(MarketSearchResult(
+                    symbol: r.symbol,
+                    name:   r.name,
+                    kind:   r.kind,
+                    coinId: r.coinId
+                ))
+                seen.insert(r.symbol)
             }
 
             self.results    = merged

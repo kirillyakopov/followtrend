@@ -22,23 +22,20 @@ struct RebalancingCard: View {
                 HStack(spacing: 10) {
                     Image(systemName: "scale.3d")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(Color.jade)
+                        .foregroundStyle(Color.mintAccent)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(lm.t("rebalancing.title"))
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(Color.textMuted)
-                            .tracking(1.1)
+                        OverlineLabel(lm.t("rebalancing.title"))
                         Text(lm.t("rebalancing.subtitle"))
-                            .font(.system(size: 12))
-                            .foregroundStyle(Color.textSecondary)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(Color.labelSecondary)
                     }
 
                     Spacer()
 
                     Image(systemName: "chevron.down")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(Color.textMuted)
+                        .foregroundStyle(Color.labelTertiary)
                         .rotationEffect(.degrees(isExpanded ? 0 : -90))
                 }
             }
@@ -48,8 +45,8 @@ struct RebalancingCard: View {
                 VStack(spacing: 10) {
                     if suggestions.isEmpty {
                         Text(lm.t("rebalancing.empty"))
-                            .font(.system(size: 13))
-                            .foregroundStyle(Color.textMuted)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(Color.labelTertiary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.vertical, 8)
                     } else {
@@ -75,15 +72,15 @@ struct RebalancingCard: View {
                 .clipShape(Circle())
 
             Text(localizedMessage(for: suggestion))
-                .font(.system(size: 13))
-                .foregroundStyle(Color.textSecondary)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color.labelSecondary)
                 .fixedSize(horizontal: false, vertical: true)
 
             Spacer(minLength: 0)
         }
         .padding(10)
         .background(Color.white.opacity(0.035))
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     private func localizedMessage(for suggestion: RebalancingSuggestion) -> String {
@@ -95,11 +92,11 @@ struct RebalancingCard: View {
     private func color(for severity: RebalancingSeverity) -> Color {
         switch severity {
         case .info:
-            return Color.jade
+            return Color.mintAccent
         case .warning:
-            return Color.orange
+            return Color.lossText
         case .critical:
-            return Color.crimson
+            return Color.lossBase
         }
     }
 }

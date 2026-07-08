@@ -2,10 +2,12 @@
 //  AddStockView.swift
 //  followtrend
 //
-//  Add Position sheet with:
-//  - Live market search (stocks, ETFs, crypto)
-//  - Auto-fetched current price on selection
-//  - Liquid Glass UI throughout
+//  Add Asset sheet (README §3):
+//  - Cancel-left nav row with centered title
+//  - Embedded search field + SUGGESTED chips
+//  - Opaque results list with monogram tiles
+//  - Inset-grouped input form + broker alignment section
+//  - Liquid Glass prominent (mint) primary save button
 //
 
 import SwiftUI
@@ -14,9 +16,6 @@ struct AddStockView: View {
     @ObservedObject var vm: PortfolioViewModel
     @EnvironmentObject private var lm: AppLanguageManager
     @ObservedObject private var cs = CurrencyService.shared
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.isSearching) private var isSearching
-    @Environment(\.dismissSearch) private var dismissSearch
 
     @StateObject private var marketSearch = MarketSearchViewModel()
 
@@ -24,13 +23,14 @@ struct AddStockView: View {
     @State private var priceText    = ""
     @State private var buyDate      = Date()
     @State private var shakeTrigger = false
-    @State private var isWatchlist  = false
+    @State var isWatchlist: Bool
+    @Environment(\.dismiss) private var dismiss
+    // Broker integration
     @State private var showBrokerIntegration = false
     @State private var brokerPlatform = "Trade Republic"
     @State private var brokerPriceText = ""
     @State private var brokerCurrency: AppCurrency = .eur
 
-    // Once user selects a result, these are set
     private var selectedSymbol: String? { marketSearch.selectedResult?.symbol }
     private var selectedName:   String? { marketSearch.selectedResult?.name }
     private var selectedKind:   AssetKind? { marketSearch.selectedResult?.kind }
@@ -38,6 +38,10 @@ struct AddStockView: View {
 
     private var isSymbolChosen: Bool { marketSearch.selectedResult != nil }
     private let brokerPlatforms = ["Trade Republic", "Scalable", "IBKR", "Other", "Manual"]
+    private let suggestedSymbols = ["NVDA", "VOO", "SOL", "DIS", "SCHD"]
+
+    /// Search-field fill per spec: rgba(118,118,128,0.16)
+    private let fieldFill = Color(red: 118/255, green: 118/255, blue: 128/255).opacity(0.16)
 
     private var isValid: Bool {
         guard isSymbolChosen else { return false }
@@ -58,7 +62,8 @@ struct AddStockView: View {
             apiCurrency: .usd,
             brokerPrice: parsedBrokerPrice,
             brokerCurrency: brokerCurrency,
-            displayCurrency: cs.selectedCurrency
+            displayCurrency: cs.selectedCurrency,
+            currencyService: cs
         )
     }
 
@@ -77,207 +82,49 @@ struct AddStockView: View {
         )
     }
 
+    /// "≈ $4,320.10 at current price" — shares × live price, when computable.
+    private var estimatedValueText: String? {
+        guard let price = marketSearch.fetchedPrice else { return nil }
+        let shares = Double(sharesText.replacingOccurrences(of: ",", with: ".")) ?? 0
+        guard shares > 0 else { return nil }
+        return cs.format(value: price * shares, from: selectedKind == .crypto ? "EUR" : "USD")
+    }
+
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Color.bgDeep.ignoresSafeArea()
+        ZStack {
+            Color.bgDeep.ignoresSafeArea()
+
+            VStack(alignment: .leading, spacing: 0) {
+                headerView
+                    .padding(.bottom, 14)
+
+                modePicker
+                    .padding(.horizontal, AppLayout.contentHorizontalPadding)
+                    .padding(.bottom, 16)
 
                 ScrollView {
-                    VStack(spacing: 20) {
+                    VStack(spacing: 24) {
+                        searchSection
 
-                        if !marketSearch.query.trimmingCharacters(in: .whitespaces).isEmpty && marketSearch.selectedResult == nil {
-                            // Search Mode
-                            if marketSearch.isSearching {
-                                VStack(spacing: 12) {
-                                    Spacer(minLength: 40)
-                                    ProgressView()
-                                        .tint(Color.jade)
-                                    Text(lm.t("search.loading"))
-                                        .font(.system(size: 14))
-                                        .foregroundStyle(Color.textSecondary)
-                                    Spacer()
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 40)
-                            } else if marketSearch.results.isEmpty {
-                                VStack(spacing: 12) {
-                                    Spacer(minLength: 40)
-                                    Image(systemName: "magnifyingglass")
-                                        .font(.system(size: 32))
-                                        .foregroundStyle(Color.textMuted)
-                                    Text(lm.t("search.noResults"))
-                                        .font(.system(size: 16, weight: .bold))
-                                        .foregroundStyle(Color.textPrimary)
-                                    Text(lm.t("portfolio.keine_ergebnisse").replacingOccurrences(of: "'%@'", with: "\"\(marketSearch.query)\""))
-                                        .font(.system(size: 13))
-                                        .foregroundStyle(Color.textSecondary)
-                                        .multilineTextAlignment(.center)
-                                    Spacer()
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 40)
-                            } else {
-                                // Search results list
-                                VStack(alignment: .leading, spacing: 12) {
-                                    Text(lm.t("portfolio.ergebnisse"))
-                                        .font(.system(size: 11, weight: .bold))
-                                        .foregroundStyle(Color.textMuted)
-                                        .tracking(1.1)
-                                        .padding(.horizontal, 4)
-
-                                    ForEach(marketSearch.results) { result in
-                                        Button {
-                                            haptic()
-                                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                                marketSearch.select(result)
-                                                dismissSearch()
-                                            }
-                                        } label: {
-                                            HStack(spacing: 12) {
-                                                Text(result.kind.rawValue)
-                                                    .font(.system(size: 9, weight: .bold))
-                                                    .foregroundStyle(kindColor(result.kind))
-                                                    .padding(.horizontal, 6)
-                                                    .padding(.vertical, 3)
-                                                    .background(kindColor(result.kind).opacity(0.12))
-                                                    .clipShape(Capsule())
-
-                                                VStack(alignment: .leading, spacing: 2) {
-                                                    Text(result.symbol)
-                                                        .font(.system(size: 14, weight: .bold))
-                                                        .foregroundStyle(Color.textPrimary)
-                                                    Text(result.name)
-                                                        .font(.system(size: 12))
-                                                        .foregroundStyle(Color.textSecondary)
-                                                        .lineLimit(1)
-                                                }
-                                                Spacer()
-                                                Image(systemName: "plus.circle")
-                                                    .font(.system(size: 16))
-                                                    .foregroundStyle(Color.jade.opacity(0.7))
-                                            }
-                                            .padding(12)
-                                            .background(Color.white.opacity(0.04))
-                                            .cornerRadius(12)
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
-                                }
-                            }
-                        } else {
-                            // Form Mode
-                            if let result = marketSearch.selectedResult {
-                                selectedAssetCard(result)
-                                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                                
-                                Picker("Position Type", selection: $isWatchlist) {
-                                    Text(lm.t("add.portfolio")).tag(false)
-                                    Text(lm.t("add.watchlist")).tag(true)
-                                }
-                                .pickerStyle(.segmented)
-                                .padding(.horizontal, 4)
-                               .onChange(of: isWatchlist) { _, newValue in
-                                    if newValue {
-                                        sharesText = "1.0"
-                                        if let price = marketSearch.fetchedPrice {
-                                            priceText = String(format: "%.2f", price)
-                                        } else {
-                                            priceText = "1.0"
-                                        }
-                                    } else {
-                                        sharesText = ""
-                                        priceText = ""
-                                    }
-                                }
+                        if let result = marketSearch.selectedResult {
+                            inputSection(for: result)
                                 .transition(.move(edge: .bottom).combined(with: .opacity))
-                                
-                                if !isWatchlist {
-                                    sectionCard(title: lm.t("add.kauf_informationen")) {
-                                        numberRow(label: lm.t("add.stueckzahl"), placeholder: "0.0000", text: $sharesText)
-                                        Divider().background(Color.borderHair)
-                                        priceRow
-                                        Divider().background(Color.borderHair)
-                                        DatePicker(lm.t("detail.kaufdatum"),
-                                                   selection: $buyDate,
-                                                   in: ...Date(),
-                                                   displayedComponents: .date)
-                                            .datePickerStyle(.compact)
-                                            .tint(.jade)
-                                            .foregroundStyle(Color.textPrimary)
-                                    }
-                                    .transition(.move(edge: .bottom).combined(with: .opacity))
-
-                                    brokerIntegrationSection
-                                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                                }
-                                
-                                if isValid && !isWatchlist {
-                                    let shares = Double(sharesText.replacingOccurrences(of: ",", with: "."))!
-                                    let price  = Double(priceText.replacingOccurrences(of: ",", with: "."))!
-                                    summaryCard(shares: shares, price: price)
-                                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                                }
-                            } else {
-                                // Initial empty placeholder instructions
-                                VStack(spacing: 16) {
-                                    Spacer(minLength: 40)
-                                    ZStack {
-                                        Circle()
-                                            .fill(Color.jade.opacity(0.12))
-                                            .frame(width: 80, height: 80)
-                                        Image(systemName: "magnifyingglass")
-                                            .font(.system(size: 32, weight: .bold))
-                                            .foregroundStyle(Color.jade)
-                                    }
-                                    Text(lm.t("search.market"))
-                                        .font(.system(size: 16, weight: .bold))
-                                        .foregroundStyle(Color.textPrimary)
-                                    Text(lm.t("add.aktien_etfs_krypto_suchen"))
-                                        .font(.system(size: 13))
-                                        .foregroundStyle(Color.textSecondary)
-                                        .multilineTextAlignment(.center)
-                                        .padding(.horizontal, 24)
-                                    Spacer()
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 60)
-                            }
                         }
 
                         Spacer(minLength: 120)
                     }
                     .padding(.horizontal, AppLayout.contentHorizontalPadding)
-                    .padding(.top, 16)
-                    .animation(.spring(response: 0.38, dampingFraction: 0.75), value: isSymbolChosen)
-                    .animation(.spring(response: 0.38, dampingFraction: 0.75), value: isValid)
-                    .animation(.easeInOut(duration: 0.2), value: marketSearch.results.isEmpty)
                 }
+            }
 
-                // ── CTA ───────────────────────────────────────────────────
-                VStack {
-                    Spacer()
+            VStack {
+                Spacer()
+                if isSymbolChosen {
                     addButton
                         .padding(.horizontal, 24)
-                        .padding(.bottom, 36)
+                        .padding(.bottom, 24)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
-            }
-            .navigationTitle(lm.t("add.uebernehmen").replacingOccurrences(of: "Position ", with: "").replacingOccurrences(of: " posición", with: ""))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(lm.t("add.abbrechen")) { dismiss() }
-                        .foregroundStyle(Color.textSecondary)
-                }
-            }
-            .searchable(
-                text: $marketSearch.query,
-                placement: .navigationBarDrawer(displayMode: .automatic),
-                prompt: lm.t("search.market")
-            )
-            .searchScopes($marketSearch.selectedScope) {
-                Text(lm.t("search.stocks")).tag(MarketScope.stocks)
-                Text(lm.t("search.etfs")).tag(MarketScope.etfs)
-                Text(lm.t("search.crypto")).tag(MarketScope.crypto)
             }
         }
         .preferredColorScheme(.dark)
@@ -295,173 +142,358 @@ struct AddStockView: View {
                 }
             }
         }
+        .onAppear {
+            if isWatchlist {
+                sharesText = "1.0"
+            }
+        }
     }
 
-    // MARK: - Selected Asset Card
+    // MARK: - Header (Cancel left · centered title)
 
-    private func selectedAssetCard(_ result: MarketSearchResult) -> some View {
-        HStack(spacing: 14) {
-            // Icon
-            let sfSymbolName: String? = {
-                switch result.symbol.uppercased() {
-                case "AAPL": return "apple.logo"
-                case "BTC": return "bitcoinsign.circle.fill"
-                default: return nil
+    private var headerView: some View {
+        ZStack {
+            Text(isWatchlist ? lm.t("add.watchlist") : lm.t("portfolio.add_position_title"))
+                .font(.system(size: 17, weight: .bold))
+                .foregroundStyle(Color.textPrimary)
+                .lineLimit(1)
+                .padding(.horizontal, 70)
+
+            HStack {
+                Button {
+                    haptic(.light)
+                    dismiss()
+                } label: {
+                    Text(lm.t("add.abbrechen"))
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Color.mintAccent)
                 }
-            }()
-            
-            ZStack {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(kindColor(result.kind).opacity(0.15))
-                    .frame(width: 32, height: 32)
-                if let sfSymbolName {
-                    Image(systemName: sfSymbolName)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(kindColor(result.kind))
-                } else {
-                    Text(String(result.symbol.prefix(2)))
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(kindColor(result.kind))
+                .buttonStyle(.plain)
+                Spacer()
+            }
+        }
+        .padding(.horizontal, AppLayout.contentHorizontalPadding)
+        .padding(.top, 14)
+    }
+
+    // MARK: - Mode Picker (Portfolio / Watchlist)
+
+    private var modePicker: some View {
+        Picker("", selection: $isWatchlist.animation(.spring(response: 0.35, dampingFraction: 0.8))) {
+            Text(lm.t("add.portfolio")).tag(false)
+            Text(lm.t("add.watchlist")).tag(true)
+        }
+        .pickerStyle(.segmented)
+        .onChange(of: isWatchlist) { _, watch in
+            haptic(.light)
+            if watch {
+                if sharesText.isEmpty { sharesText = "1.0" }
+                if let price = marketSearch.fetchedPrice {
+                    priceText = String(format: "%.2f", price)
                 }
             }
+        }
+    }
+
+    // MARK: - Search Section
+
+    private var searchSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            searchField
+
+            if marketSearch.query.trimmingCharacters(in: .whitespaces).isEmpty
+                && marketSearch.selectedResult == nil {
+                suggestedChips
+            }
+
+            if marketSearch.isSearching {
+                HStack {
+                    Spacer()
+                    ProgressView().tint(Color.mintAccent)
+                    Spacer()
+                }
+                .padding(.top, 20)
+            } else if !marketSearch.query.isEmpty && marketSearch.selectedResult == nil {
+                if marketSearch.results.isEmpty {
+                    HStack {
+                        Spacer()
+                        Text(lm.t("search.noResults"))
+                            .font(.system(size: 13))
+                            .foregroundStyle(Color.labelTertiary)
+                        Spacer()
+                    }
+                    .padding(.top, 20)
+                } else {
+                    resultsList
+                }
+            }
+        }
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(Color.white.opacity(0.45))
+
+            TextField(lm.t("add.aktien_etfs_krypto_suchen"), text: $marketSearch.query)
+                .textFieldStyle(.plain)
+                .font(.system(size: 15))
+                .foregroundStyle(Color.textPrimary)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+
+            if !marketSearch.query.isEmpty {
+                Button {
+                    haptic(.light)
+                    marketSearch.query = ""
+                    marketSearch.selectedResult = nil
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 15))
+                        .foregroundStyle(Color.white.opacity(0.45))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 38)
+        .background(
+            RoundedRectangle(cornerRadius: 13, style: .continuous)
+                .fill(fieldFill)
+        )
+    }
+
+    // MARK: - Suggested chips (query empty)
+
+    private var suggestedChips: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            OverlineLabel(lm.t("add.suggested"))
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(suggestedSymbols, id: \.self) { symbol in
+                        Button {
+                            haptic(.light)
+                            marketSearch.query = symbol
+                        } label: {
+                            Text(symbol)
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(Color.textPrimary)
+                        }
+                        .buttonStyle(.glass)
+                        .buttonBorderShape(.capsule)
+                        .controlSize(.small)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Results list (opaque container, hairline separators)
+
+    private var resultsList: some View {
+        VStack(spacing: 0) {
+            ForEach(Array(marketSearch.results.enumerated()), id: \.element.id) { index, result in
+                searchRow(for: result)
+                if index < marketSearch.results.count - 1 {
+                    Rectangle()
+                        .fill(Color.separatorHair)
+                        .frame(height: 0.5)
+                        .padding(.leading, 62)
+                }
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color.surface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    private func searchRow(for result: MarketSearchResult) -> some View {
+        Button {
+            haptic(.medium)
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                marketSearch.select(result)
+            }
+        } label: {
+            HStack(spacing: 12) {
+                MonogramTile(symbol: result.symbol, size: 36)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(result.symbol)
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(Color.textPrimary)
+                        if isOwned(result.symbol) {
+                            Text(lm.t("add.owned"))
+                                .font(.system(size: 9, weight: .heavy))
+                                .tracking(0.6)
+                                .foregroundStyle(Color.mintAccent)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2.5)
+                                .background(Capsule().fill(Color.mintAccent.opacity(0.16)))
+                        }
+                    }
+                    Text(result.name)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color.labelSecondary)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 8)
+
+                // 24h change data is not available on search results; show price
+                // when known, otherwise a quiet add affordance.
+                if let price = result.livePrice {
+                    Text(cs.formatConverted(price))
+                        .font(.system(size: 14.5, weight: .bold))
+                        .monospacedDigit()
+                        .foregroundStyle(Color.textPrimary)
+                } else {
+                    Image(systemName: "plus.circle")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(Color.mintAccent.opacity(0.7))
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func isOwned(_ symbol: String) -> Bool {
+        vm.investments.contains { !$0.isWatchlist && $0.symbol.uppercased() == symbol.uppercased() }
+    }
+
+    // MARK: - Input Section
+
+    @ViewBuilder
+    private func inputSection(for result: MarketSearchResult) -> some View {
+        VStack(spacing: 20) {
+            selectedAssetCard(result)
+
+            if !isWatchlist {
+                VStack(alignment: .leading, spacing: 0) {
+                    quantityPriceCard
+
+                    if let est = estimatedValueText {
+                        Text(String(format: lm.t("add.approx_at_current_price"), est))
+                            .font(.system(size: 12))
+                            .monospacedDigit()
+                            .foregroundStyle(Color.labelSecondary)
+                            .padding(.top, 8)
+                            .padding(.horizontal, 4)
+                    }
+
+                    brokerIntegrationSection
+                        .padding(.top, 16)
+                }
+            }
+        }
+    }
+
+    private func selectedAssetCard(_ result: MarketSearchResult) -> some View {
+        HStack(spacing: 12) {
+            MonogramTile(symbol: result.symbol, size: 40)
 
             VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 6) {
-                    Text(result.symbol)
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(Color.textPrimary)
-                    Text(result.kind.rawValue)
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(kindColor(result.kind))
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(kindColor(result.kind).opacity(0.12))
-                        .clipShape(Capsule())
-                }
+                Text(result.symbol)
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(Color.textPrimary)
                 Text(result.name)
                     .font(.system(size: 12))
-                    .foregroundStyle(Color.textSecondary)
+                    .foregroundStyle(Color.labelSecondary)
                     .lineLimit(1)
             }
 
             Spacer()
 
-            // Live price
             if marketSearch.isFetchingPrice {
-                ProgressView().tint(.jade).scaleEffect(0.8)
+                ProgressView().tint(Color.mintAccent).scaleEffect(0.8)
             } else if let price = marketSearch.fetchedPrice {
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text(lm.t("einzel.live"))
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(Color.jade)
-                    Text(CurrencyService.shared.formatConverted(price))
-                        .font(.system(size: 14, weight: .bold, design: .monospaced))
+                    OverlineLabel(lm.t("einzel.live"), color: .mintAccent)
+                    Text(cs.formatConverted(price))
+                        .font(.system(size: 14.5, weight: .bold))
+                        .monospacedDigit()
                         .foregroundStyle(Color.textPrimary)
                     if !isWatchlist {
-                        Button(lm.t("add.uebernehmen")) {
+                        Button {
                             priceText = String(format: "%.2f", price)
                             haptic()
+                        } label: {
+                            Text(lm.t("add.uebernehmen"))
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(Color.mintAccent)
                         }
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(Color.jade)
+                        .buttonStyle(.glass)
+                        .buttonBorderShape(.capsule)
+                        .controlSize(.mini)
                     }
                 }
             }
         }
-        .padding(14)
-        .background {
+        .padding(16)
+        .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.bgCard)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .strokeBorder(Color.jade.opacity(0.25), lineWidth: 0.8)
-                )
-        }
+                .fill(Color.surface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5)
+        )
     }
 
-    // MARK: - Price Row
+    // MARK: - Inset-grouped Shares / Avg price fields
 
-    private var priceRow: some View {
-        HStack {
-            Text(lm.t("add.kaufpreis_eur"))
-                .font(.system(size: 15))
-                .foregroundStyle(Color.textPrimary)
-            Spacer()
-            TextField("0.00", text: $priceText)
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.trailing)
-                .font(.system(size: 15, weight: .semibold, design: .monospaced))
-                .foregroundStyle(Color.jade)
-                .frame(maxWidth: 140)
+    private var quantityPriceCard: some View {
+        VStack(spacing: 0) {
+            fieldRow(label: lm.t("add.stueckzahl"), placeholder: "0.000", text: $sharesText)
+
+            Rectangle()
+                .fill(Color.separatorHair)
+                .frame(height: 0.5)
+                .padding(.leading, 16)
+
+            fieldRow(label: lm.t("detail.kaufpreis"), placeholder: "0.00", text: $priceText)
         }
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color.surface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5)
+        )
     }
 
-    // MARK: - Sub-views
-
-    @ViewBuilder
-    private func sectionCard<C: View>(title: String, @ViewBuilder content: () -> C) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(title)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(Color.textMuted)
-                .textCase(.uppercase)
-                .tracking(1.2)
-            content()
-        }
-        .cardStyle()
-    }
-
-    @ViewBuilder
-    private func numberRow(label: String, placeholder: String, text: Binding<String>) -> some View {
+    private func fieldRow(label: String, placeholder: String, text: Binding<String>) -> some View {
         HStack {
             Text(label)
-                .font(.system(size: 15))
-                .foregroundStyle(Color.textPrimary)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Color.labelSecondary)
             Spacer()
             TextField(placeholder, text: text)
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.trailing)
-                .font(.system(size: 15, weight: .semibold, design: .monospaced))
-                .foregroundStyle(Color.jade)
-                .frame(maxWidth: 140)
+                .font(.system(size: 16, weight: .semibold))
+                .monospacedDigit()
+                .foregroundStyle(Color.mintAccent)
         }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 13)
     }
 
-    @ViewBuilder
-    private func summaryCard(shares: Double, price: Double) -> some View {
-        let total = shares * price
-        VStack(alignment: .leading, spacing: 10) {
-            Text(lm.t("add.zusammenfassung"))
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(Color.textMuted)
-                .textCase(.uppercase)
-                .tracking(1.2)
-
-            HStack {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(lm.t("add.investitionssumme"))
-                        .font(.system(size: 12))
-                        .foregroundStyle(Color.textSecondary)
-                    Text(CurrencyService.shared.formatConverted(total))
-                        .font(.system(size: 22, weight: .bold, design: .monospaced))
-                        .foregroundStyle(Color.textPrimary)
-                }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 3) {
-                    Text(lm.t("add.stueck_preis"))
-                        .font(.system(size: 12))
-                        .foregroundStyle(Color.textSecondary)
-                    Text("\(String(format: "%.4g", shares)) × \(CurrencyService.shared.formatConverted(price).replacingOccurrences(of: "€", with: "").replacingOccurrences(of: "$", with: ""))")
-                        .font(.system(size: 13, design: .monospaced))
-                        .foregroundStyle(Color.textSecondary)
-                }
-            }
-        }
-        .cardStyle()
-    }
+    // MARK: - Broker Integration
 
     private var brokerIntegrationSection: some View {
-        sectionCard(title: "Broker Integration") {
+        VStack(alignment: .leading, spacing: 12) {
             Button {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                     showBrokerIntegration.toggle()
@@ -471,63 +503,83 @@ struct AddStockView: View {
                 HStack(spacing: 10) {
                     Image(systemName: "building.columns.fill")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Color.jade)
+                        .foregroundStyle(Color.mintAccent)
                     VStack(alignment: .leading, spacing: 3) {
                         Text("Align with broker")
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(Color.textPrimary)
                         Text("Optional: If your broker currently shows a different price than market APIs, followtrend can align values more closely.")
                             .font(.system(size: 12))
-                            .foregroundStyle(Color.textMuted)
+                            .foregroundStyle(Color.labelTertiary)
+                            .multilineTextAlignment(.leading)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer()
                     Image(systemName: "chevron.right")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(Color.textMuted)
+                        .foregroundStyle(Color.labelTertiary)
                         .rotationEffect(.degrees(showBrokerIntegration ? 90 : 0))
                 }
+                .padding(.vertical, 8)
+                .padding(.horizontal, 4)
+                .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.glass)
+            .buttonBorderShape(.roundedRectangle(radius: 16))
 
             if showBrokerIntegration {
-                Divider().background(Color.borderHair)
-
-                Picker("Broker Platform", selection: $brokerPlatform) {
-                    ForEach(brokerPlatforms, id: \.self) { platform in
-                        Text(platform).tag(platform)
+                VStack(spacing: 0) {
+                    Picker("Broker Platform", selection: $brokerPlatform) {
+                        ForEach(brokerPlatforms, id: \.self) { platform in
+                            Text(platform).tag(platform)
+                        }
                     }
-                }
-                .pickerStyle(.menu)
+                    .pickerStyle(.menu)
+                    .tint(Color.mintAccent)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
 
-                Divider().background(Color.borderHair)
+                    Rectangle()
+                        .fill(Color.separatorHair)
+                        .frame(height: 0.5)
+                        .padding(.leading, 16)
 
-                numberRow(label: "Current Broker Price", placeholder: "0.00", text: $brokerPriceText)
-
-                Divider().background(Color.borderHair)
-
-                Picker("Broker Currency", selection: $brokerCurrency) {
-                    ForEach(AppCurrency.allCases) { currency in
-                        Text(currency.rawValue).tag(currency)
-                    }
-                }
-                .pickerStyle(.segmented)
-
-                if let factor = brokerAdjustmentFactor {
                     HStack {
-                        Text("Adjustment factor")
-                            .font(.system(size: 12))
-                            .foregroundStyle(Color.textMuted)
+                        Text("Current Broker Price")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Color.labelSecondary)
                         Spacer()
-                        Text(String(format: "%.4f", factor))
-                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                            .foregroundStyle(Color.textSecondary)
+                        TextField("0.00", text: $brokerPriceText)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .font(.system(size: 16, weight: .semibold))
+                            .monospacedDigit()
+                            .foregroundStyle(Color.mintAccent)
                     }
-                } else if parsedBrokerPrice > 0 {
-                    Text("A current market API price is required before an adjustment factor can be saved.")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Color.textMuted)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 13)
+
+                    Rectangle()
+                        .fill(Color.separatorHair)
+                        .frame(height: 0.5)
+                        .padding(.leading, 16)
+
+                    Picker("Broker Currency", selection: $brokerCurrency) {
+                        ForEach(AppCurrency.allCases) { currency in
+                            Text(currency.rawValue).tag(currency)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(16)
                 }
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color.surface)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5)
+                )
 
                 if shouldShowBrokerWarning {
                     brokerWarningView
@@ -540,22 +592,27 @@ struct AddStockView: View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Color(hex: "#f59e0b"))
+                .foregroundStyle(Color.lossText)
             Text("The broker price differs significantly from market data. Please verify currency, exchange, or symbol.")
                 .font(.system(size: 12))
-                .foregroundStyle(Color.textSecondary)
+                .foregroundStyle(Color.labelSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(10)
-        .background(Color(hex: "#f59e0b").opacity(0.10))
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.lossBase.opacity(0.10))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(Color.lossBase.opacity(0.16), lineWidth: 0.5)
+        )
     }
 
     // MARK: - CTA Button
 
     private var addButton: some View {
-        let glowColor = isValid ? (isWatchlist ? Color(hex: "#6366f1") : Color.jade) : Color(white: 0.3)
-        return LiquidGlassButton(glowColor: glowColor) {
+        Button {
             guard isValid, let sym = selectedSymbol else {
                 shakeTrigger.toggle()
                 haptic(.rigid)
@@ -575,32 +632,30 @@ struct AddStockView: View {
                 isWatchlist: isWatchlist,
                 brokerAdjustment: brokerAdjustmentDraft
             )
-            haptic(.medium)
+            hapticSuccess()
+
+            // Reset state instead of dismiss, since it's a tab now
             dismiss()
+            sharesText = ""
+            priceText = ""
+            // Optionally, we could switch tab back to portfolio via vm or binding
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: isWatchlist ? "eye.fill" : "plus.circle.fill")
-                    .font(.system(size: 18, weight: .semibold))
+                    .font(.system(size: 17, weight: .semibold))
                 Text(isWatchlist ? lm.t("add.zu_watchlist_hinzufuegen") : lm.t("add.uebernehmen"))
                     .font(.system(size: 16, weight: .bold))
             }
-            .foregroundStyle(isValid ? Color.textPrimary : Color.textMuted)
+            .frame(maxWidth: .infinity)
+            .foregroundStyle(Color.mintInk)
         }
+        .buttonStyle(.glassProminent)
+        .tint(Color.mintAccent)
+        .controlSize(.large)
+        .buttonBorderShape(.capsule)
         .disabled(!isValid)
-        .opacity(isValid ? 1 : 0.45)
         .modifier(ShakeModifier(trigger: shakeTrigger))
     }
-
-    // MARK: - Helpers
-
-    private func kindColor(_ kind: AssetKind) -> Color {
-        switch kind {
-        case .stock:  return .jade
-        case .etf:    return Color(hex: "#5eead4")
-        case .crypto: return Color(hex: "#2dd4bf")
-        }
-    }
-
 }
 
 // MARK: - Shake Modifier

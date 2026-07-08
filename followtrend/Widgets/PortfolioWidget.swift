@@ -15,7 +15,9 @@ struct PortfolioWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: PortfolioProvider()) { entry in
             WidgetView(entry: entry)
-                .containerBackground(Color.bgDeep, for: .widget)
+                .containerBackground(for: .widget) {
+                    LinearGradient.widgetTile
+                }
         }
         .configurationDisplayName("followtrend")
         .description("Track your portfolio balance and top watchlist assets.")

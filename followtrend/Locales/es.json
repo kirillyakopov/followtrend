@@ -7,7 +7,8 @@
     "gesamt": "Resumen",
     "einzel": "Activos",
     "bubbles": "Burbujas",
-    "anlegen": "Añadir"
+    "anlegen": "Añadir",
+    "profile": "Perfil"
   },
   "portfolio": {
     "brokerage": "Corretaje",
@@ -25,7 +26,19 @@
     "stueck": "Acciones",
     "loeschen": "Eliminar",
     "watchlist": "Lista de seguimiento",
-    "risk_correlation": "RIESGO Y CORRELACIÓN"
+    "risk_correlation": "RIESGO Y CORRELACIÓN",
+    "net_worth": "PATRIMONIO NETO",
+    "all_time_return": "RETORNO HISTÓRICO",
+    "allocation": "ASIGNACIÓN",
+    "top_holdings": "PRINCIPALES POSICIONES",
+    "the_map": "El mapa",
+    "holdings_title": "POSICIONES",
+    "add_position_title": "Añadir una posición",
+    "new_entry_title": "NUEVA ENTRADA",
+    "your_profile_title": "Tu perfil",
+    "account_title": "CUENTA",
+    "row_hint": "Desliza una fila para ver acciones · Toca para ver detalles",
+    "live": "En vivo"
   },
   "sort": {
     "title": "ORDENAR POSICIONES",
@@ -63,8 +76,7 @@
   "einzel": {
     "depot": "CARTERA",
     "rendite": "RETORNO",
-    "live": "En vivo",
-    "tippe_ziehen": "Toca · Arrastra para mover"
+    "live": "En vivo"
   },
   "detail": {
     "meine_position": "MI POSICIÓN",
@@ -92,7 +104,9 @@
     "notes_placeholder": "Escriba notas aquí...",
     "tags_placeholder": "Escriba etiquetas separadas por comas...",
     "insufficient_correlation_data": "Datos históricos insuficientes para el análisis de correlación",
-    "pearson_correlation": "Correlación de Pearson"
+    "pearson_correlation": "Correlación de Pearson",
+    "watchlist_ghost_info": "En tu lista de seguimiento — no afecta al valor de la cartera.",
+    "today_suffix": "hoy"
   },
   "add": {
     "wertpapier_suchen": "Buscar activos...",
@@ -107,7 +121,10 @@
     "uebernehmen": "Añadir posición",
     "portfolio": "Cartera",
     "watchlist": "Lista de seguimiento",
-    "zu_watchlist_hinzufuegen": "Añadir a lista de seguimiento"
+    "zu_watchlist_hinzufuegen": "Añadir a lista de seguimiento",
+    "suggested": "SUGERIDOS",
+    "owned": "EN CARTERA",
+    "approx_at_current_price": "≈ %@ al precio actual"
   },
   "profile": {
     "profil": "Perfil",
@@ -117,10 +134,17 @@
     "apple_id_verknuepft": "Apple ID enlazado",
     "deine_daten_sicher": "Tus datos están guardados de forma segura",
     "daten_apple_verknuepft": "Tus datos están enlazados de forma segura con tu Apple ID.",
-    "sprache": "Idioma"
+    "sprache": "Idioma",
+    "general": "General",
+    "about": "Acerca de",
+    "version": "Versión",
+    "currency": "Moneda",
+    "price_source": "Fuente de precios"
   },
   "common": {
-    "fertig": "Hecho"
+    "fertig": "Hecho",
+    "abbrechen": "Cancelar",
+    "speichern": "Guardar"
   },
   "alerts": {
     "title": "Alerta de precio",
@@ -166,7 +190,9 @@
   "advice": {
     "noActivePositions": "Sin posiciones",
     "noActivePositionsBody": "Añade posiciones activas para desbloquear consejos de cartera.",
-    "allocation": { "title": "ASIGNACIÓN DE CARTERA" },
+    "allocation": {
+      "title": "ASIGNACIÓN DE CARTERA"
+    },
     "largest": {
       "title": "MAYOR POSICIÓN",
       "warning": "%@ representa el %@%% de tu cartera. Considera reducir la concentración.",
@@ -183,10 +209,15 @@
       "emptyTitle": "Mezcla equilibrada",
       "criticalTitle": "Requiere atención",
       "warningTitle": "Vale revisarlo",
-      "infoTitle": "Parece equilibrado"
+      "infoTitle": "Parece equilibrado",
+      "reviewChip": "Revisar sugerencia"
     },
-    "diversification": { "title": "CONSEJO DE DIVERSIFICACIÓN" },
-    "concentration": { "title": "AVISO DE CONCENTRACIÓN" },
+    "diversification": {
+      "title": "CONSEJO DE DIVERSIFICACIÓN"
+    },
+    "concentration": {
+      "title": "AVISO DE CONCENTRACIÓN"
+    },
     "stablecoin": {
       "title": "CRIPTO SIMILAR A EFECTIVO",
       "noneTitle": "Sin stablecoins",
@@ -203,10 +234,22 @@
   },
   "bubbleInfo": {
     "title": "Inteligencia de burbujas",
-    "size": { "title": "Tamaño", "body": "Muestra el peso en la cartera. Las burbujas más grandes representan posiciones mayores." },
-    "color": { "title": "Color", "body": "Muestra el rendimiento. Verde significa retorno positivo, rojo negativo y neutral significa plano." },
-    "ghost": { "title": "Burbujas fantasma", "body": "Los elementos de watchlist se muestran como burbujas fantasma. No afectan al valor ni a la analítica." },
-    "stablecoins": { "title": "Stablecoins", "body": "Las stablecoins se tratan como cripto similar a efectivo y se excluyen de consejos basados en volatilidad." }
+    "size": {
+      "title": "Tamaño",
+      "body": "Muestra el peso en la cartera. Las burbujas más grandes representan posiciones mayores."
+    },
+    "color": {
+      "title": "Color",
+      "body": "Muestra el rendimiento. Verde significa retorno positivo, rojo negativo y neutral significa plano."
+    },
+    "ghost": {
+      "title": "Burbujas fantasma",
+      "body": "Los elementos de watchlist se muestran como burbujas fantasma. No afectan al valor ni a la analítica."
+    },
+    "stablecoins": {
+      "title": "Stablecoins",
+      "body": "Las stablecoins se tratan como cripto similar a efectivo y se excluyen de consejos basados en volatilidad."
+    }
   },
   "pearson": {
     "title": "Correlación de Pearson",
@@ -283,7 +326,10 @@
       "insufficientData": "Datos históricos insuficientes",
       "calculationFailed": "No se puede calcular la correlación",
       "loading": "Cargando datos de correlación..."
-    }
+    },
+    "glyph_together": "Se mueven juntos",
+    "glyph_independent": "Independientes",
+    "glyph_opposite": "Se mueven a la inversa"
   },
   "search": {
     "portfolio": "Buscar posiciones",
@@ -316,6 +362,29 @@
     "stockCluster": "Clúster de acciones",
     "etfCluster": "Clúster ETF",
     "cryptoCluster": "Clúster cripto",
-    "correlationCluster": "Clúster de correlación"
+    "correlationCluster": "Clúster de correlación",
+    "popSelected": "Explotar seleccionadas",
+    "mergeSelected": "Combinar seleccionadas",
+    "customCluster": "Clúster personalizado",
+    "interactionHint": "Toca y arrastra para mover · Mantén para seleccionar o agrupar",
+    "renameCluster": "Renombrar Clúster",
+    "renameClusterDesc": "Introduce un nuevo nombre para este clúster.",
+    "clusterName": "Nombre del Clúster",
+    "gaining": "En positivo",
+    "losing": "En negativo"
+  },
+  "watchlist": {
+    "ghost_hint": "Burbujas fantasma — flotan en la vista de burbujas, pero nunca afectan al valor de tu cartera."
+  },
+  "chart": {
+    "retry": "Reintentar",
+    "no_data": "No hay datos del gráfico"
+  },
+  "cluster": {
+    "stats_combined_value": "Valor combinado",
+    "stats_combined_return": "Retorno combinado",
+    "stats_largest_holding": "Mayor posición",
+    "stats_top_performer": "Mejor rendimiento",
+    "correlation_link": "¿Qué significa la correlación?"
   }
 }

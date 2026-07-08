@@ -75,14 +75,21 @@ struct PriceAlertSheet: View {
             ZStack {
                 Color.bgDeep.ignoresSafeArea()
 
-                VStack(spacing: 18) {
+                VStack(alignment: .leading, spacing: 18) {
+                    OverlineLabel(lm.t("alerts.title"))
+                        .padding(.leading, 4)
+
                     header
 
                     VStack(spacing: 14) {
-                        Toggle(lm.t("alerts.enabled"), isOn: $isEnabled)
-                            .tint(Color(hex: "#6366f1"))
+                        Toggle(isOn: $isEnabled) {
+                            Text(lm.t("alerts.enabled"))
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundStyle(Color.textPrimary)
+                        }
+                        .tint(Color.mintAccent)
 
-                        Divider().background(Color.borderHair)
+                        hairline
 
                         Picker(lm.t("alerts.condition"), selection: $kind) {
                             ForEach(PriceAlertKind.allCases) { alertKind in
@@ -93,27 +100,28 @@ struct PriceAlertSheet: View {
                         .tint(Color.textPrimary)
 
                         if kind.requiresThreshold {
-                            Divider().background(Color.borderHair)
+                            hairline
 
                             HStack {
                                 Text(kind == .dailyChangeAbove ? lm.t("alerts.thresholdPercent") : lm.t("alerts.thresholdPrice"))
-                                    .font(.system(size: 14))
-                                    .foregroundStyle(Color.textSecondary)
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundStyle(Color.labelSecondary)
                                 Spacer()
                                 TextField("0.00", text: $thresholdText)
                                     .keyboardType(.decimalPad)
                                     .multilineTextAlignment(.trailing)
-                                    .font(.system(size: 16, weight: .bold, design: .monospaced))
-                                    .foregroundStyle(Color(hex: "#818cf8"))
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .monospacedDigit()
+                                    .foregroundStyle(Color.mintAccent)
                                     .frame(maxWidth: 130)
                             }
                         }
                     }
-                    .cardStyle()
+                    .cardStyle(cornerRadius: 16)
 
                     Text(lm.t("alerts.pushReady"))
                         .font(.system(size: 12))
-                        .foregroundStyle(Color.textMuted)
+                        .foregroundStyle(Color.labelTertiary)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     Spacer()
@@ -122,12 +130,12 @@ struct PriceAlertSheet: View {
                 }
                 .padding(20)
             }
-            .navigationTitle(lm.t("alerts.title"))
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(lm.t("add.abbrechen")) { dismiss() }
-                        .foregroundStyle(Color.textSecondary)
+                        .foregroundStyle(Color.mintAccent)
                 }
             }
         }
@@ -135,31 +143,35 @@ struct PriceAlertSheet: View {
     }
 
     private var header: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(Color(hex: "#6366f1").opacity(0.16))
-                    .frame(width: 52, height: 52)
-                Image(systemName: "bell.badge.fill")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(Color(hex: "#818cf8"))
-            }
+        HStack(spacing: 12) {
+            MonogramTile(symbol: investment.symbol, size: 44)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(investment.symbol)
-                    .font(.system(size: 18, weight: .bold))
+                    .font(.system(size: 18, weight: .heavy))
                     .foregroundStyle(Color.textPrimary)
                 Text(CurrencyService.shared.format(value: livePrice, from: investment.nativeCurrency))
-                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(Color.textSecondary)
+                    .font(.system(size: 13, weight: .semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(Color.labelSecondary)
             }
 
             Spacer()
+
+            Image(systemName: "bell.badge")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(Color.mintAccent)
         }
     }
 
+    private var hairline: some View {
+        Rectangle()
+            .fill(Color.separatorHair)
+            .frame(height: 0.5)
+    }
+
     private var saveButton: some View {
-        LiquidGlassButton(glowColor: canSave ? Color(hex: "#6366f1") : Color(white: 0.3)) {
+        Button {
             guard canSave else {
                 haptic(.rigid)
                 return
@@ -183,15 +195,16 @@ struct PriceAlertSheet: View {
             haptic(.medium)
             dismiss()
         } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "checkmark.circle.fill")
-                Text(lm.t("alerts.save"))
-                    .font(.system(size: 16, weight: .bold))
-            }
-            .foregroundStyle(canSave ? Color.textPrimary : Color.textMuted)
+            Text(lm.t("alerts.save"))
+                .font(.system(size: 16, weight: .bold))
+                .foregroundStyle(Color.mintInk)
+                .frame(maxWidth: .infinity)
         }
+        .buttonStyle(.glassProminent)
+        .tint(Color.mintAccent)
+        .controlSize(.large)
+        .buttonBorderShape(.capsule)
         .disabled(!canSave)
-        .opacity(canSave ? 1 : 0.45)
     }
 
     private static func initialThresholdText(
