@@ -761,126 +761,6 @@ final class PortfolioViewModel: ObservableObject {
         return aggregatedPoints
     }
 
-    // MARK: Bubble particles
-
-    func bubbleParticles(in size: CGSize) -> [BubbleParticle] {
-        let activeInvestments = investments.filter { !$0.isWatchlist }
-        let totalVal = activeInvestments.reduce(0.0) {
-            $0 + selectedCurrencyValue(for: $1)
-        }
-
-        let maxR: CGFloat = min(size.width, size.height) * 0.22
-        let minR: CGFloat = 28
-
-        var particlesList: [BubbleParticle] = []
-        var processedSymbols = Set<String>()
-
-        // 1. Process collapsed clusters
-        for cluster in bubbleClusters where !cluster.isExpanded {
-            let clusterInvestments = investments.filter { !$0.isWatchlist && cluster.symbols.contains($0.symbol) }
-            guard !clusterInvestments.isEmpty else { continue }
-
-            let combinedValue = clusterInvestments.reduce(0.0) {
-                $0 + selectedCurrencyValue(for: $1)
-            }
-            let combinedCost = clusterInvestments.reduce(0.0) {
-                $0 + selectedCurrencyCost(for: $1)
-            }
-
-            let gain: Double
-            if combinedCost > 0 {
-                gain = ((combinedValue - combinedCost) / combinedCost) * 100
-            } else {
-                gain = 0.0
-            }
-
-            let weight = totalVal > 0 ? (combinedValue / totalVal) : 0.0
-            let r = minR + (maxR - minR) * CGFloat(weight)
-
-            let formattedValue = CurrencyService.shared.formatConverted(combinedValue)
-            let template = AppLanguageManager.shared.t("bubbles.assetsCount")
-            let assetsCountText = template.replacingOccurrences(of: "{count}", with: "\(cluster.symbols.count)")
-
-            let particle = BubbleParticle(
-                id: cluster.id.uuidString,
-                symbol: cluster.name,
-                gain: gain,
-                radius: r,
-                position: CGPoint(
-                    x: CGFloat.random(in: r...(size.width - r)),
-                    y: CGFloat.random(in: r...(size.height - r))
-                ),
-                velocity: CGVector(
-                    dx: CGFloat.random(in: -0.3...0.3),
-                    dy: CGFloat.random(in: -0.3...0.3)
-                ),
-                isWatchlist: false,
-                isCluster: true,
-                clusterSymbols: cluster.symbols,
-                combinedValueText: formattedValue,
-                assetsCountText: assetsCountText
-            )
-
-            particlesList.append(particle)
-            for sym in cluster.symbols {
-                processedSymbols.insert(sym)
-            }
-        }
-
-        // 2. Process remaining investments
-        for inv in investments {
-            if inv.isWatchlist {
-                let r = 38.0
-                let gain = marketService.getStockInfo(for: inv.symbol)?.dayChangePercent ?? 0.0
-
-                let particle = BubbleParticle(
-                    id: inv.id,
-                    symbol: inv.symbol,
-                    gain: gain,
-                    radius: r,
-                    position: CGPoint(
-                        x: CGFloat.random(in: r...(size.width - r)),
-                        y: CGFloat.random(in: r...(size.height - r))
-                    ),
-                    velocity: CGVector(
-                        dx: CGFloat.random(in: -0.3...0.3),
-                        dy: CGFloat.random(in: -0.3...0.3)
-                    ),
-                    isWatchlist: true,
-                    name: inv.name
-                )
-                particlesList.append(particle)
-            } else {
-                guard !processedSymbols.contains(inv.symbol) else { continue }
-
-                let val = selectedCurrencyValue(for: inv)
-                let weight = totalVal > 0 ? (val / totalVal) : 0.0
-                let r = minR + (maxR - minR) * CGFloat(weight)
-                let gain = inv.totalCost > 0 ? ((val - inv.totalCost) / inv.totalCost) * 100 : 0.0
-
-                let particle = BubbleParticle(
-                    id: inv.id,
-                    symbol: inv.symbol,
-                    gain: gain,
-                    radius: r,
-                    position: CGPoint(
-                        x: CGFloat.random(in: r...(size.width - r)),
-                        y: CGFloat.random(in: r...(size.height - r))
-                    ),
-                    velocity: CGVector(
-                        dx: CGFloat.random(in: -0.3...0.3),
-                        dy: CGFloat.random(in: -0.3...0.3)
-                    ),
-                    isWatchlist: false,
-                    name: inv.name
-                )
-                particlesList.append(particle)
-            }
-        }
-
-        return particlesList
-    }
-
     // MARK: - Bubble Merge Operations
 
     @MainActor
@@ -1081,14 +961,12 @@ final class PortfolioViewModel: ObservableObject {
             $0 + selectedCurrencyValue(for: $1)
         }
 
-        let maxR: CGFloat = min(size.width, size.height) * 0.22
-        let minR: CGFloat = 28
-
         var baseList: [BubbleParticle] = []
 
         for inv in investments {
             if inv.isWatchlist {
-                let r = 38.0
+                // Ghost bubbles: small fixed size (design spec r = 21)
+                let r = 21.0
                 let gain = marketService.getStockInfo(for: inv.symbol)?.dayChangePercent ?? 0.0
                 let xLimit = size.width - r > r ? CGFloat.random(in: r...(size.width - r)) : size.width / 2
                 let yLimit = size.height - r > r ? CGFloat.random(in: r...(size.height - r)) : size.height / 2
@@ -1110,7 +988,8 @@ final class PortfolioViewModel: ObservableObject {
             } else {
                 let val = selectedCurrencyValue(for: inv)
                 let weight = totalVal > 0 ? (val / totalVal) : 0.0
-                let r = minR + (maxR - minR) * CGFloat(weight)
+                // Design spec: radius = 15 + sqrt(allocation) × 76 (≈29–49 typical)
+                let r = 15.0 + sqrt(max(0, weight)) * 76.0
                 let gain = inv.totalCost > 0 ? ((val - inv.totalCost) / inv.totalCost) * 100 : 0.0
                 let xLimit = size.width - r > r ? CGFloat.random(in: r...(size.width - r)) : size.width / 2
                 let yLimit = size.height - r > r ? CGFloat.random(in: r...(size.height - r)) : size.height / 2
@@ -1168,11 +1047,14 @@ final class PortfolioViewModel: ObservableObject {
             }
             
             let gain = combinedCost > 0 ? ((combinedValue - combinedCost) / combinedCost) * 100 : 0.0
-            
-            let maxR: CGFloat = min(sizeToUse.width, sizeToUse.height) * 0.22
-            let minR: CGFloat = 28
-            let weight = totalVal > 0 ? (combinedValue / totalVal) : 0.0
-            let r = minR + (maxR - minR) * CGFloat(weight)
+
+            // Design spec: cluster radius = min(78, sqrt(Σ memberR²) × 1.05)
+            let sumR2 = clusterInvestments.reduce(0.0) { acc, inv in
+                let w = totalVal > 0 ? (selectedCurrencyValue(for: inv) / totalVal) : 0.0
+                let memberR = 15.0 + sqrt(max(0, w)) * 76.0
+                return acc + memberR * memberR
+            }
+            let r = CGFloat(min(78.0, sqrt(sumR2) * 1.05))
             
             let formattedValue = CurrencyService.shared.formatConverted(combinedValue)
             let template = AppLanguageManager.shared.t("bubbles.assetsCount")
