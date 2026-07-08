@@ -7,7 +7,7 @@
 //  - Full no-overlap separation (repulsionPad = 1.05)
 //  - Ultra-soft inelastic collisions
 //  - Liquid pop-burst animation with particles
-//  - Soft ambient glow — no specular blink, no neon ring
+//  - Radial-gradient bubbles with top-left highlight + soft outer glow
 //  - Tap → StockDetailView with "Pop Bubble" option
 //
 
@@ -18,7 +18,9 @@ import SwiftUI
 struct BubblePhysicsView: View {
 
     @ObservedObject var vm: PortfolioViewModel
+    var searchText: String = ""
     @EnvironmentObject private var lm: AppLanguageManager
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var engine = BubblePhysicsEngine()
 
     @State private var dragID:            String?
@@ -36,10 +38,10 @@ struct BubblePhysicsView: View {
                 if !engine.isLayoutReady {
                     ShimmerLoadingView()
                 }
-                
+
                 TimelineView(.animation) { timeline in
                     Canvas { ctx, size in
-                        drawBubbles(date: timeline.date, ctx: &ctx)
+                        drawBubbles(date: timeline.date, ctx: &ctx, canvasSize: size)
                     }
                     .gesture(
                         DragGesture(minimumDistance: 4)
@@ -55,7 +57,7 @@ struct BubblePhysicsView: View {
                 } // End TimelineView
                 .opacity(engine.isLayoutReady ? 1.0 : 0.0)
                 .animation(.easeOut(duration: 0.3), value: engine.isLayoutReady)
-                
+
                 // Multi-Select Toolbar
                 if vm.isBubbleSelectionModeActive {
                     multiSelectToolbar
@@ -77,6 +79,11 @@ struct BubblePhysicsView: View {
             }
             .onChange(of: vm.correlationMatrix) { _, matrix in
                 engine.correlationMatrix = matrix
+            }
+            .onChange(of: vm.expandedClusterID) { _, newId in
+                if newId == nil {
+                    engine.isTempExpanded = false
+                }
             }
         }
         // Detail sheet — passes onPop, onDelete, and onBuy
@@ -110,6 +117,7 @@ struct BubblePhysicsView: View {
             guard newVal == nil, let id = pendingPopID else { return }
             // Small delay for sheet dismissal animation
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                haptic(.rigid)
                 engine.popBubble(id: id)
                 // Delete investment after pop animation finishes (~0.85s)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.85) {
@@ -126,7 +134,7 @@ struct BubblePhysicsView: View {
             Button(lm.t("bubbles.dissolveCluster")) {
                 if let idx = vm.bubbleClusters.firstIndex(where: { $0.id.uuidString == particle.id }) {
                     engine.prepareForExpansion(clusterId: particle.id, position: particle.position, velocity: particle.velocity, symbols: particle.clusterSymbols)
-                    vm.expandCluster(id: vm.bubbleClusters[idx].id)
+                    vm.dissolveCluster(id: vm.bubbleClusters[idx].id)
                 }
                 selectedClusterParticle = nil
             }
@@ -139,7 +147,7 @@ struct BubblePhysicsView: View {
         }
         .sheet(isPresented: $showClusterAssetsSheet, onDismiss: { selectedClusterParticle = nil }) {
             if let particle = selectedClusterParticle {
-                ClusterAssetsSheet(particle: particle, vm: vm)
+                ClusterAssetsSheet(particle: particle, vm: vm, engine: engine)
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
                     .presentationBackground(.ultraThinMaterial)
@@ -150,10 +158,13 @@ struct BubblePhysicsView: View {
 
     // MARK: - Canvas Drawing
 
-    private func drawBubbles(date: Date, ctx: inout GraphicsContext) {
+    private func drawBubbles(date: Date, ctx: inout GraphicsContext, canvasSize: CGSize) {
+        if engine.canvasSize != canvasSize && canvasSize.width > 0 {
+            engine.updateSize(canvasSize)
+        }
         engine.tick(date: date)
         drawExpandedClusterConnections(ctx: &ctx)
-        drawActiveBubbles(ctx: &ctx)
+        drawActiveBubbles(ctx: &ctx, canvasSize: canvasSize)
         drawTemporaryChildren(ctx: &ctx)
         drawMergingBubbles(ctx: &ctx)
 
@@ -181,16 +192,29 @@ struct BubblePhysicsView: View {
         }
     }
 
-    private func drawActiveBubbles(ctx: inout GraphicsContext) {
+    private func drawActiveBubbles(ctx: inout GraphicsContext, canvasSize: CGSize) {
         for particle in engine.particles {
-            if particle.id == engine.expandedClusterID {
+            var renderParticle = particle
+            renderParticle.position = renderPosition(for: particle, canvasSize: canvasSize)
+
+            if renderParticle.id == engine.expandedClusterID {
                 var drawCtx = ctx
                 drawCtx.opacity = max(0.05, 1.0 - engine.expansionProgress)
-                drawSoftBubble(particle, ctx: &drawCtx)
+                drawSoftBubble(renderParticle, ctx: &drawCtx)
             } else {
-                drawSoftBubble(particle, ctx: &ctx)
+                drawSoftBubble(renderParticle, ctx: &ctx)
             }
         }
+    }
+
+    private func renderPosition(for particle: BubbleParticle, canvasSize: CGSize) -> CGPoint {
+        return particle.position
+    }
+
+    private func canSelectBubble(_ particle: BubbleParticle) -> Bool {
+        guard !particle.isWatchlist else { return false }
+        guard !StablecoinClassifier.isStablecoin(symbol: particle.symbol, name: particle.name ?? "") else { return false }
+        return true
     }
 
     private func drawTemporaryChildren(ctx: inout GraphicsContext) {
@@ -204,7 +228,8 @@ struct BubblePhysicsView: View {
                 radius: child.radius * engine.expansionProgress,
                 position: child.currentPosition,
                 velocity: .zero,
-                isWatchlist: child.isWatchlist
+                isWatchlist: child.isWatchlist,
+                name: child.name
             )
             var drawCtx = ctx
             drawCtx.opacity = engine.expansionProgress
@@ -234,6 +259,7 @@ struct BubblePhysicsView: View {
     private func handleDragChanged(_ value: DragGesture.Value) {
         if dragID == nil {
             dragID = engine.particles.first { distPt($0.position, value.startLocation) < $0.radius }?.id
+            if dragID != nil { haptic(.light) }   // grab feedback
         }
         if let id = dragID {
             engine.drag(id: id, to: value.location)
@@ -246,10 +272,23 @@ struct BubblePhysicsView: View {
 
     private func handleLongPressEnded(_ value: SequenceGesture<LongPressGesture, DragGesture>.Value) {
         guard case .second(true, let drag) = value,
-              let loc = drag?.startLocation,
-              let tapped = engine.particles.first(where: { distPt($0.position, loc) < $0.radius }),
+              let loc = drag?.startLocation else { return }
+
+        if engine.isTempExpanded {
+            if let tappedChild = engine.tempChildParticles.first(where: { distPt($0.currentPosition, loc) < $0.radius }) {
+                if !vm.isBubbleSelectionModeActive {
+                    vm.toggleBubbleSelectionMode()
+                }
+                if !vm.selectedBubbleSymbols.contains(tappedChild.symbol) {
+                    vm.toggleBubbleSelection(for: tappedChild.symbol)
+                }
+                return
+            }
+        }
+
+        guard let tapped = engine.particles.first(where: { distPt($0.position, loc) < $0.radius }),
               !tapped.isCluster,
-              !tapped.isWatchlist else {
+              canSelectBubble(tapped) else {
             return
         }
 
@@ -286,9 +325,18 @@ struct BubblePhysicsView: View {
     }
 
     private func handleSelectionModeTap(at location: CGPoint) {
+        if engine.isTempExpanded {
+            if let tappedChild = engine.tempChildParticles.first(where: { distPt($0.currentPosition, location) < $0.radius }) {
+                vm.toggleBubbleSelection(for: tappedChild.symbol)
+                return
+            }
+        }
+
         if let tapped = engine.particles.first(where: { distPt($0.position, location) < $0.radius }) {
-            if !tapped.isCluster && !tapped.isWatchlist {
+            if !tapped.isCluster && canSelectBubble(tapped) {
                 vm.toggleBubbleSelection(for: tapped.symbol)
+            } else {
+                haptic(.light)
             }
         } else {
             vm.toggleBubbleSelectionMode()
@@ -313,6 +361,7 @@ struct BubblePhysicsView: View {
 
         haptic(.light)
         engine.isTempExpanded = false
+        vm.expandedClusterID = nil
     }
 
     private func presentClusterAssetsSheet(centerId: String, centerParticle: BubbleParticle) {
@@ -332,35 +381,27 @@ struct BubblePhysicsView: View {
     }
 
     private func expandClusterPreview(_ tapped: BubbleParticle, canvasSize: CGSize) {
-        var tempChildren: [TempChildParticle] = []
-        let activeInvestments = vm.investments.filter { !$0.isWatchlist }
-        let totalActiveVal = activeInvestments.reduce(0.0) {
-            $0 + vm.selectedCurrencyValue(for: $1)
+        let previewSymbols = tapped.clusterSymbols
+        let previewChildren = vm.bubbleRenderSnapshot.baseParticles.filter {
+            previewSymbols.contains($0.symbol)
         }
-        let maxR = min(canvasSize.width, canvasSize.height) * 0.22
-        let minR: CGFloat = 28
 
-        for symbol in tapped.clusterSymbols {
-            guard let inv = vm.investments.first(where: { $0.symbol == symbol }) else { continue }
-            let value = vm.selectedCurrencyValue(for: inv)
-            let cost = vm.selectedCurrencyCost(for: inv)
-            let weight = totalActiveVal > 0 ? value / totalActiveVal : 0.0
-            let childR = minR + (maxR - minR) * CGFloat(weight)
-            let gain = cost > 0 ? ((value - cost) / cost) * 100 : 0.0
-
+        var tempChildren: [TempChildParticle] = []
+        for p in previewChildren {
             tempChildren.append(TempChildParticle(
-                id: inv.id,
-                symbol: inv.symbol,
-                name: inv.name,
-                gain: gain,
-                radius: childR,
-                isWatchlist: false
+                id: p.id,
+                symbol: p.symbol,
+                name: p.name ?? "",
+                gain: p.gain,
+                radius: p.radius,
+                isWatchlist: p.isWatchlist
             ))
         }
 
         engine.tempChildParticles = tempChildren
         engine.expandedClusterID = tapped.id
         engine.isTempExpanded = true
+        vm.expandedClusterID = UUID(uuidString: tapped.id)
     }
 
     // MARK: - Extracted Subviews
@@ -368,20 +409,35 @@ struct BubblePhysicsView: View {
     private var multiSelectToolbar: some View {
         VStack {
             Spacer()
-            HStack(spacing: 16) {
-                popSelectedButton
-                mergeSelectedButton
+            GlassEffectContainer(spacing: 8) {
+                HStack(spacing: 8) {
+                    Text("\(vm.selectedBubbleSymbols.count)")
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .monospacedDigit()
+                        .foregroundColor(.labelSecondary)
+                        .padding(.horizontal, 4)
+
+                    mergeSelectedButton
+                    popSelectedButton
+
+                    Button(action: {
+                        vm.toggleBubbleSelectionMode()
+                    }) {
+                        Text(lm.t("common.fertig"))
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(Color.textPrimary)
+                    }
+                    .buttonStyle(.glass)
+                    .buttonBorderShape(.capsule)
+                }
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
-            .background(Color.bgCard.opacity(0.8))
-            .background(Material.ultraThin)
-            .cornerRadius(24)
-            .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color.white.opacity(0.1), lineWidth: 1))
-            .shadow(color: Color.black.opacity(0.2), radius: 10, x: 0, y: 5)
             .padding(.bottom, 24)
         }
-        .transition(.move(edge: .bottom).combined(with: .opacity))
+        .transition(
+            .move(edge: .bottom)
+                .combined(with: .opacity)
+                .animation(.spring(response: 0.32, dampingFraction: 0.85))
+        )
         .zIndex(10)
     }
 
@@ -389,81 +445,79 @@ struct BubblePhysicsView: View {
         Button(action: {
             vm.popSelectedBubbles()
         }) {
-            HStack {
-                Image(systemName: "trash.fill")
+            HStack(spacing: 5) {
+                Image(systemName: "hand.tap")
+                    .font(.system(size: 12, weight: .semibold))
                 Text(lm.t("bubbles.popSelected"))
+                    .font(.system(size: 13, weight: .bold))
             }
-            .font(.system(size: 15, weight: .bold))
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(Color.crimson.opacity(0.15))
-            .foregroundColor(.crimson)
-            .cornerRadius(12)
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.crimson.opacity(0.3), lineWidth: 1))
+            .foregroundStyle(Color.lossText)
         }
+        .buttonStyle(.glass)
+        .tint(Color.lossBase)
+        .buttonBorderShape(.capsule)
     }
 
     private var mergeSelectedButton: some View {
         Button(action: {
-            let name = lm.t("bubbles.customCluster")
-            vm.mergeSelectedBubbles(name: name, type: .correlation)
+            vm.createClusterFromSelectedSymbols(vm.selectedBubbleSymbols)
         }) {
-            HStack {
-                Image(systemName: "link.circle.fill")
+            HStack(spacing: 5) {
+                Image(systemName: "link")
+                    .font(.system(size: 12, weight: .semibold))
                 Text(lm.t("bubbles.mergeSelected"))
+                    .font(.system(size: 13, weight: .bold))
             }
-            .font(.system(size: 15, weight: .bold))
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(Color.jade.opacity(0.15))
-            .foregroundColor(.jade)
-            .cornerRadius(12)
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.jade.opacity(0.3), lineWidth: 1))
+            .foregroundStyle(Color.mintInk)
         }
+        .buttonStyle(.glassProminent)
+        .tint(Color.mintAccent)
+        .buttonBorderShape(.capsule)
         .disabled(vm.selectedBubbleSymbols.count < 2)
-        .opacity(vm.selectedBubbleSymbols.count < 2 ? 0.5 : 1.0)
     }
 
-    // MARK: - Soft Ambient Bubble Drawing (no blink, no neon ring)
+    // MARK: - Bubble Drawing (radial gradient + top-left highlight + soft glow)
 
     private func drawSoftBubble(_ p: BubbleParticle, ctx: inout GraphicsContext) {
         let isPos     = p.gain >= 0
         let isNeutral = abs(p.gain) < 0.05
-        let baseColor = p.isWatchlist ? Color(hex: "#6366f1") : (isNeutral ? Color.gray : (isPos ? Color.jade : Color.crimson))
+        let baseColor = p.isWatchlist ? Color.neutralFlat : (isNeutral ? Color.gray : (isPos ? Color.jade : Color.crimson))
         let r         = p.radius
         let cx        = p.position.x
         let cy        = p.position.y
 
         // ── Spawn Animation (Scale, Fade, Blur) ─────────────────────────
         let progress = p.spawnProgress
-        
+
         var drawCtx = ctx
         let scale: CGFloat
         let bodyOpacity: Double
         let glowOpacityFactor: Double
         let textOpacity: Double
-        
+
         if progress < 1.0 {
             // Materialization animates over the first 0.5s of the progress (0.0 to 0.5)
             let materializationProgress = min(1.0, progress / 0.5)
-            
-            // Premium spring curve with soft overshoot
-            let springVal = 1.0 - exp(-7.0 * materializationProgress) * cos(1.5 * .pi * materializationProgress)
+
+            // Premium spring curve with soft overshoot (plain ease under Reduce Motion)
+            let springVal = reduceMotion
+                ? materializationProgress
+                : 1.0 - exp(-7.0 * materializationProgress) * cos(1.5 * .pi * materializationProgress)
             scale = CGFloat(0.70 + springVal * 0.30)
             bodyOpacity = max(0.0, min(1.0, springVal))
-            
+
             // Glow appears first
             glowOpacityFactor = min(1.0, materializationProgress / 0.3)
-            
+
             // Text is delayed by ~0.15s (which is 0.3 of materialization progress)
             textOpacity = max(0.0, min(1.0, (materializationProgress - 0.3) / 0.7))
-            
+
             // Slight blur: starts at 4.0, fades to 0
             let blurRadius = (1.0 - materializationProgress) * 4.0
             if blurRadius > 0.1 {
                 drawCtx.addFilter(.blur(radius: blurRadius))
             }
-            
+
             // Apply scale transform around bubble center
             let transform = CGAffineTransform(translationX: cx, y: cy)
                 .scaledBy(x: scale, y: scale)
@@ -477,6 +531,27 @@ struct BubblePhysicsView: View {
             textOpacity = 1.0
         }
 
+        // Dragged bubble scales up slightly (1.06) — feels responsive / alive
+        if p.id == dragID && progress >= 1.0 {
+            let ds: CGFloat = 1.06
+            drawCtx.concatenate(
+                CGAffineTransform(translationX: cx, y: cy)
+                    .scaledBy(x: ds, y: ds)
+                    .translatedBy(x: -cx, y: -cy)
+            )
+        }
+
+        let isHighlighted = !searchText.isEmpty && (p.symbol.localizedCaseInsensitiveContains(searchText) || (p.name ?? "").localizedCaseInsensitiveContains(searchText))
+
+        if isHighlighted {
+            drawCtx.addFilter(.shadow(color: .white.opacity(0.8), radius: 8))
+            drawCtx.addFilter(.shadow(color: .white.opacity(0.4), radius: 16))
+        }
+
+        if vm.isBubbleSelectionModeActive && !canSelectBubble(p) {
+            drawCtx.opacity *= 0.55
+        }
+
         if p.isCluster {
             drawClusterBubble(p, ctx: &drawCtx, baseColor: baseColor, scale: scale, textOpacity: textOpacity, glowOpacityFactor: glowOpacityFactor)
             return
@@ -485,81 +560,139 @@ struct BubblePhysicsView: View {
         let rect    = CGRect(x: cx - r, y: cy - r, width: r * 2, height: r * 2)
         let ellipse = Path(ellipseIn: rect)
 
-        // ── 1. Wide soft ambient glow (radial gradient falloff) ───────────
-        let startGlow = r * 0.95
-        let endGlow   = r * 1.28
-        let glowRect  = CGRect(x: cx - endGlow, y: cy - endGlow, width: endGlow * 2, height: endGlow * 2)
-        let baseGlowOpacity = p.isWatchlist ? 0.08 : 0.12
-        let secondaryGlowOpacity = p.isWatchlist ? 0.02 : 0.04
-        
-        let glowGradient = Gradient(stops: [
-            .init(color: baseColor.opacity(baseGlowOpacity * glowOpacityFactor), location: 0.0),
-            .init(color: baseColor.opacity(secondaryGlowOpacity * glowOpacityFactor), location: 0.4),
-            .init(color: .clear, location: 1.0)
-        ])
+        // ── Ghost (watchlist) bubble: transparent, dashed, no glow, no % ──
+        if p.isWatchlist {
+            drawCtx.fill(ellipse, with: .color(Color.white.opacity(0.025)))
+            drawCtx.stroke(
+                ellipse,
+                with: .color(Color.labelSecondary.opacity(0.9)),
+                style: StrokeStyle(lineWidth: 1.5, dash: [4, 4])
+            )
+            if textOpacity > 0.01 {
+                var textCtx = drawCtx
+                textCtx.opacity = textOpacity
+                let symSize: CGFloat = max(10, r * 0.34)
+                textCtx.draw(
+                    Text(p.symbol)
+                        .font(.system(size: symSize, weight: .bold))
+                        .foregroundColor(Color.labelSecondary),
+                    at: CGPoint(x: cx, y: cy)
+                )
+            }
+            return
+        }
+
+        // Performance → colour language (mirrors the prototype's bubbleFace)
+        let pct = Double(p.gain)
+        let gf  = glowOpacityFactor
+
+        let fillCenter: Color, fillMid: Color, fillOuter: Color
+        let borderColor: Color, glowColor: Color, txtCol: Color
+        let glowMul: CGFloat
+        let glowAlpha: Double
+
+        if pct > 1.5 {
+            let a = min(0.30, 0.13 + abs(pct) / 240.0)
+            fillCenter  = Color.mintAccent.opacity(a + 0.08)
+            fillMid     = Color.mintAccent.opacity(a * 0.42)
+            fillOuter   = Color.mintAccent.opacity(0.04)
+            borderColor = Color.mintAccent.opacity(0.26)
+            glowColor   = Color(hex: "#5ED69E"); glowAlpha = 0.40; glowMul = 0.80
+            txtCol      = Color.gainTextBright                 // #DCF8EA
+        } else if pct < -1.5 {
+            let a = min(0.28, 0.12 + abs(pct) / 240.0)
+            fillCenter  = Color.lossBase.opacity(a + 0.07)
+            fillMid     = Color.lossBase.opacity(a * 0.42)
+            fillOuter   = Color.lossBase.opacity(0.04)
+            borderColor = Color.lossBase.opacity(0.24)
+            glowColor   = Color(hex: "#D96A60"); glowAlpha = 0.32; glowMul = 0.70
+            txtCol      = Color(hex: "#F8DFDB")
+        } else {
+            fillCenter  = Color.white.opacity(0.13)
+            fillMid     = Color.white.opacity(0.05)
+            fillOuter   = Color.white.opacity(0.02)
+            borderColor = Color.white.opacity(0.15)
+            glowColor   = Color.white; glowAlpha = 0.12; glowMul = 0.50
+            txtCol      = Color(hex: "#ECECEE")
+        }
+
+        // Highlight offset at 32% / 28% → light from top-left, 3D sphere feel
+        let hlCenter = CGPoint(x: cx - r * 0.36, y: cy - r * 0.44)
+
+        // ── 1. Soft outer glow (peaks at rim, fades outward) ──────────────
+        let outer = r + r * glowMul
         drawCtx.fill(
-            Path(ellipseIn: glowRect),
+            Path(ellipseIn: CGRect(x: cx - outer, y: cy - outer, width: outer * 2, height: outer * 2)),
             with: .radialGradient(
-                glowGradient,
+                Gradient(stops: [
+                    .init(color: glowColor.opacity(glowAlpha * 0.55 * 0.5 * gf), location: 0.0),
+                    .init(color: glowColor.opacity(glowAlpha * 0.55 * gf),       location: r / outer),
+                    .init(color: .clear,                                          location: 1.0)
+                ]),
                 center: CGPoint(x: cx, y: cy),
-                startRadius: startGlow,
-                endRadius: endGlow
+                startRadius: 0,
+                endRadius: outer
             )
         )
 
-        // ── 2. Radial glass fill (near-clear centre → soft tinted rim) ───
+        // ── 2. Radial body fill (highlight at 32/28) ──────────────────────
         drawCtx.fill(ellipse, with: .radialGradient(
             Gradient(stops: [
-                .init(color: Color.white.opacity(0.010),  location: 0.0),
-                .init(color: baseColor.opacity(p.isWatchlist ? 0.035 : 0.055),    location: 0.60),
-                .init(color: baseColor.opacity(p.isWatchlist ? 0.08 : 0.13),     location: 1.0)
+                .init(color: fillCenter, location: 0.0),
+                .init(color: fillMid,    location: 0.52),
+                .init(color: fillOuter,  location: 1.0)
             ]),
-            center: CGPoint(x: cx, y: cy),
+            center: hlCenter,
             startRadius: 0,
-            endRadius: r
+            endRadius: r * 1.35
         ))
 
-        // ── 3. Frosted inner border (very subtle / dashed for watchlist) ─
-        if p.isWatchlist {
-            drawCtx.stroke(ellipse, with: .color(Color.white.opacity(0.35)), style: StrokeStyle(lineWidth: 0.9, lineCap: .round, dash: [4, 4]))
-        } else {
-            drawCtx.stroke(ellipse, with: .color(Color.white.opacity(0.13)), lineWidth: 0.95)
-        }
-        
-        // ── Selection Ring ────────────────────────────────────────────────
-        if vm.isBubbleSelectionModeActive && vm.selectedBubbleSymbols.contains(p.symbol) {
-            let selectionRect = CGRect(x: cx - r - 4, y: cy - r - 4, width: (r + 4) * 2, height: (r + 4) * 2)
-            drawCtx.stroke(Path(ellipseIn: selectionRect), with: .color(Color.jade.opacity(0.85)), lineWidth: 3.0)
+        // ── 3. Glossy specular spot ───────────────────────────────────────
+        let spotR = r * 0.55
+        drawCtx.fill(
+            Path(ellipseIn: CGRect(x: hlCenter.x - spotR, y: hlCenter.y - spotR, width: spotR * 2, height: spotR * 2)),
+            with: .radialGradient(
+                Gradient(colors: [Color.white.opacity(0.10), .clear]),
+                center: hlCenter,
+                startRadius: 0,
+                endRadius: spotR
+            )
+        )
+
+        // ── 4. Border ─────────────────────────────────────────────────────
+        let selected = vm.isBubbleSelectionModeActive && canSelectBubble(p) && vm.selectedBubbleSymbols.contains(p.symbol)
+        drawCtx.stroke(ellipse, with: .color(selected ? Color.mintAccent.opacity(0.7) : borderColor), lineWidth: 1)
+
+        // ── 5. Selection ring (0 0 0 3px mint 0.5) ────────────────────────
+        if selected {
+            let rr = r + 1.5
+            drawCtx.stroke(
+                Path(ellipseIn: CGRect(x: cx - rr, y: cy - rr, width: rr * 2, height: rr * 2)),
+                with: .color(Color.mintAccent.opacity(0.5)),
+                lineWidth: 3
+            )
         }
 
-        // ── 4. Symbol and Gain labels (with delayed materialization) ──────
+        // ── 6. Labels: ticker (heavy) + return % (tabular) ────────────────
         if textOpacity > 0.01 {
             var textCtx = drawCtx
             textCtx.opacity = textOpacity
-            
-            let symSize: CGFloat = max(11, r * 0.33)
+
+            let symSize: CGFloat = max(10, r * 0.32)
             textCtx.draw(
                 Text(p.symbol)
-                    .font(.system(size: symSize, weight: .bold))
-                    .foregroundColor(.white.opacity(0.90)),
+                    .font(.system(size: symSize, weight: .heavy))
+                    .foregroundColor(txtCol),
                 at: CGPoint(x: cx, y: cy - symSize * 0.52)
             )
 
-            let gainStr  = String(format: "%@%.1f%%", isPos ? "+" : "", p.gain)
+            let gainStr  = String(format: "%@%.1f%%", pct >= 0 ? "+" : "", pct)
             let gainSize: CGFloat = max(8, r * 0.24)
-            
-            let textColor: Color
-            if p.isWatchlist {
-                textColor = isPos ? Color(hex: "#818cf8") : Color(hex: "#f43f5e")
-            } else {
-                textColor = isNeutral ? Color.textSecondary : (isPos ? Color.jade : Color.crimson)
-            }
-
             textCtx.draw(
                 Text(gainStr)
-                    .font(.system(size: gainSize, weight: .semibold, design: .monospaced))
-                    .foregroundColor(textColor),
-                at: CGPoint(x: cx, y: cy + symSize * 0.68)
+                    .font(.system(size: gainSize, weight: .semibold).monospacedDigit())
+                    .foregroundColor(txtCol.opacity(0.92)),
+                at: CGPoint(x: cx, y: cy + symSize * 0.66)
             )
         }
     }
@@ -568,10 +701,10 @@ struct BubblePhysicsView: View {
         let r  = p.radius
         let cx = p.position.x
         let cy = p.position.y
-        
+
         let rect    = CGRect(x: cx - r, y: cy - r, width: r * 2, height: r * 2)
         let ellipse = Path(ellipseIn: rect)
-        
+
         // 1. Wide soft ambient glow
         let endGlow   = r * 1.35
         let glowRect  = CGRect(x: cx - endGlow, y: cy - endGlow, width: endGlow * 2, height: endGlow * 2)
@@ -589,7 +722,7 @@ struct BubblePhysicsView: View {
                 endRadius: endGlow
             )
         )
-        
+
         // 2. Layered look: background offset path (shadow orb)
         let offset1 = r * 0.08
         let layerRect1 = CGRect(x: cx - r + offset1, y: cy - r + offset1, width: r * 1.85, height: r * 1.85)
@@ -604,7 +737,7 @@ struct BubblePhysicsView: View {
             endRadius: r * 0.9
         ))
         ctx.stroke(Path(ellipseIn: layerRect1), with: .color(Color.white.opacity(0.07)), lineWidth: 0.8)
-        
+
         // 3. Main Glass Fill
         ctx.fill(ellipse, with: .radialGradient(
             Gradient(stops: [
@@ -616,7 +749,7 @@ struct BubblePhysicsView: View {
             startRadius: 0,
             endRadius: r
         ))
-        
+
         // 4. Subtle multi-orb reflection (highlight orb)
         let offset2 = -r * 0.15
         let layerRect2 = CGRect(x: cx + offset2, y: cy + offset2, width: r * 0.5, height: r * 0.5)
@@ -629,15 +762,15 @@ struct BubblePhysicsView: View {
             startRadius: 0,
             endRadius: r * 0.25
         ))
-        
+
         // 5. Border
         ctx.stroke(ellipse, with: .color(Color.white.opacity(0.20)), lineWidth: 1.0)
-        
+
         // 6. Text Labels
         if textOpacity > 0.01 {
             var textCtx = ctx
             textCtx.opacity = textOpacity
-            
+
             let nameSize: CGFloat = max(11, r * 0.20)
             textCtx.draw(
                 Text(p.symbol)
@@ -645,7 +778,7 @@ struct BubblePhysicsView: View {
                     .foregroundColor(.white.opacity(0.95)),
                 at: CGPoint(x: cx, y: cy - r * 0.32)
             )
-            
+
             let countSize: CGFloat = max(8, r * 0.15)
             textCtx.draw(
                 Text(p.assetsCountText)
@@ -653,7 +786,7 @@ struct BubblePhysicsView: View {
                     .foregroundColor(.white.opacity(0.60)),
                 at: CGPoint(x: cx, y: cy)
             )
-            
+
             let valSize: CGFloat = max(9, r * 0.17)
             let isPos = p.gain >= 0
             let textColor = isPos ? Color.jade : Color.crimson

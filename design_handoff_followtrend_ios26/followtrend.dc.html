@@ -1,0 +1,2145 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  html,body{margin:0;padding:0;background:#050506;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue",Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;color:#F2F2F4;}
+  a{color:#7BE0AE;text-decoration:none}
+  a:hover{color:#A7EBC9}
+  button{font-family:inherit;border:none;background:none;padding:0;margin:0;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+  input{font-family:inherit;outline:none;border:none;background:transparent;}
+  input::placeholder{color:rgba(235,235,245,0.32)}
+  [data-hidescroll]{scrollbar-width:none;-ms-overflow-style:none}
+  [data-hidescroll]::-webkit-scrollbar{display:none;width:0;height:0}
+  @keyframes ftSheetUp{from{transform:translateY(104%)}to{transform:translateY(0)}}
+  @keyframes ftFadeIn{from{opacity:0}to{opacity:1}}
+  @keyframes ftScreenIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes ftPopIn{0%{transform:scale(0.2);opacity:0}62%{transform:scale(1.08);opacity:1}100%{transform:scale(1);opacity:1}}
+  @keyframes ftPopOut{0%{transform:scale(1);opacity:1}100%{transform:scale(1.38);opacity:0}}
+  @keyframes ftChildIn{0%{transform:scale(0.25);opacity:0}68%{transform:scale(1.07);opacity:1}100%{transform:scale(1);opacity:1}}
+  @keyframes ftToastIn{from{transform:translate(-50%,-16px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+  @keyframes ftMenuIn{from{transform:scale(0.86);opacity:0}to{transform:scale(1);opacity:1}}
+</style>
+</helmet>
+
+<div data-screen-label="followtrend canvas" style="min-height:100vh;box-sizing:border-box;background:radial-gradient(1100px 520px at 50% -180px, rgba(123,224,174,0.055), transparent 62%), #050506;display:flex;flex-direction:column;align-items:center;padding:36px 28px 90px;">
+
+  <div style="width:100%;max-width:1230px;display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:30px;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <circle cx="10" cy="10" r="7" stroke="#7BE0AE" stroke-width="2"></circle>
+        <circle cx="17.5" cy="17.5" r="3.6" fill="#7BE0AE" fill-opacity="0.9"></circle>
+      </svg>
+      <div style="font-size:17px;font-weight:700;letter-spacing:-0.2px;">followtrend</div>
+    </div>
+    <div style="font-size:12.5px;color:rgba(235,235,245,0.4);letter-spacing:0.2px;">iOS 26 · Liquid Glass · Interactive prototype — click through it</div>
+  </div>
+
+  <div style="width:100%;max-width:1230px;display:flex;gap:36px;align-items:flex-start;justify-content:center;flex-wrap:wrap;">
+
+    <div data-screen-label="Screen shortcuts" style="width:186px;flex:none;display:flex;flex-direction:column;gap:7px;">
+      <div style="font-size:11px;font-weight:700;letter-spacing:1.1px;color:rgba(235,235,245,0.32);padding:0 2px 3px;">SCREENS</div>
+      <sc-for list="{{ jumpChips }}" as="jc" hint-placeholder-count="8">
+        <button onClick="{{ jc.go }}" style="{{ jc.style }}">
+          <span>{{ jc.label }}</span>
+          <svg width="6" height="10" viewBox="0 0 8 14" fill="none" style="opacity:0.5;"><path d="M1 1l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </button>
+      </sc-for>
+      <div style="font-size:11.5px;line-height:1.55;color:rgba(235,235,245,0.34);padding:8px 2px 0;">Fully interactive — drag bubbles, hold to multi-select, swipe rows, scrub the chart.</div>
+    </div>
+
+    <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+      <div data-screen-label="followtrend app" style="position:relative;width:100%;height:100%;background:linear-gradient(180deg,#0A0A0B 0%,#020202 34%);overflow:hidden;">
+
+        <sc-if value="{{ isPortfolio }}" hint-placeholder-val="{{ true }}">
+          <div data-screen-label="Portfolio" data-hidescroll style="position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;padding:60px 0 150px;box-sizing:border-box;animation:ftScreenIn 0.34s cubic-bezier(0.25,0.8,0.3,1);">
+
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 20px 0;">
+              <div style="font-size:13px;font-weight:600;color:rgba(235,235,245,0.45);letter-spacing:0.1px;">{{ todayLabel }}</div>
+              <button onClick="{{ openAdd }}" aria-label="Add asset" style="width:34px;height:34px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:rgba(120,120,128,0.22);backdrop-filter:blur(16px) saturate(170%);-webkit-backdrop-filter:blur(16px) saturate(170%);border:0.5px solid rgba(255,255,255,0.12);box-shadow:inset 0 1px 0 rgba(255,255,255,0.12), 0 2px 8px rgba(0,0,0,0.3);color:#7BE0AE;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"></path></svg>
+              </button>
+            </div>
+            <div style="padding:2px 20px 0;font-size:33px;font-weight:800;letter-spacing:-0.7px;line-height:1.15;">Portfolio</div>
+
+            <div style="padding:16px 20px 0;">
+              <div style="font-size:11px;font-weight:700;letter-spacing:1.3px;color:rgba(235,235,245,0.34);">TOTAL VALUE</div>
+              <div style="font-size:41px;font-weight:700;letter-spacing:-1.4px;line-height:1.12;font-variant-numeric:tabular-nums;margin-top:2px;">{{ heroValue }}</div>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+                <div style="{{ heroPillStyle }}">{{ heroDeltaText }}</div>
+                <div style="font-size:13px;color:rgba(235,235,245,0.42);font-weight:500;">{{ rangeLabel }}</div>
+              </div>
+            </div>
+
+            <div style="padding:12px 8px 0;">
+              <svg width="100%" height="172" viewBox="0 0 374 172" preserveAspectRatio="none" onPointerMove="{{ chartMove }}" onPointerDown="{{ chartMove }}" onPointerLeave="{{ chartLeave }}" style="display:block;touch-action:none;cursor:crosshair;">
+                <defs>
+                  <linearGradient id="ftFillM" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#7BE0AE" stop-opacity="0.24"></stop>
+                    <stop offset="1" stop-color="#7BE0AE" stop-opacity="0"></stop>
+                  </linearGradient>
+                  <linearGradient id="ftFillR" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#E37B72" stop-opacity="0.22"></stop>
+                    <stop offset="1" stop-color="#E37B72" stop-opacity="0"></stop>
+                  </linearGradient>
+                </defs>
+                <line x1="0" x2="374" y1="{{ baseY }}" y2="{{ baseY }}" stroke="rgba(255,255,255,0.12)" stroke-width="1" stroke-dasharray="2 5"></line>
+                <path d="{{ areaPath }}" fill="{{ areaFill }}"></path>
+                <path d="{{ linePath }}" fill="none" stroke="{{ lineColor }}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path>
+                <line x1="{{ scrubX }}" x2="{{ scrubX }}" y1="8" y2="164" stroke="rgba(255,255,255,0.34)" stroke-width="1" opacity="{{ scrubOpacity }}"></line>
+                <circle cx="{{ scrubX }}" cy="{{ scrubY }}" r="4.4" fill="{{ lineColor }}" stroke="#050506" stroke-width="2" opacity="{{ scrubOpacity }}"></circle>
+              </svg>
+            </div>
+
+            <div style="margin:10px 20px 0;position:relative;display:flex;background:rgba(118,118,128,0.13);border-radius:999px;padding:3px;border:0.5px solid rgba(255,255,255,0.05);">
+              <div style="{{ thumbStyle }}"></div>
+              <sc-for list="{{ ranges }}" as="rg" hint-placeholder-count="7">
+                <button onClick="{{ rg.go }}" style="{{ rg.style }}">{{ rg.label }}</button>
+              </sc-for>
+            </div>
+
+            <div data-screen-label="Insight cards" data-hidescroll style="display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding:22px 20px 6px;scroll-padding-left:20px;">
+
+              <div style="scroll-snap-align:start;flex:none;width:294px;height:164px;box-sizing:border-box;padding:16px 18px;border-radius:26px;background:linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.035));backdrop-filter:blur(26px) saturate(170%);-webkit-backdrop-filter:blur(26px) saturate(170%);border:0.5px solid rgba(255,255,255,0.09);box-shadow:0 14px 30px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.08);">
+                <div style="font-size:12px;font-weight:700;letter-spacing:0.7px;color:rgba(235,235,245,0.44);">PORTFOLIO ALLOCATION</div>
+                <div style="display:flex;align-items:center;gap:18px;margin-top:14px;">
+                  <div style="{{ allocConic }}"></div>
+                  <div style="display:flex;flex-direction:column;gap:7px;flex:1;">
+                    <sc-for list="{{ allocLegend }}" as="al" hint-placeholder-count="4">
+                      <div style="display:flex;align-items:center;gap:8px;">
+                        <div style="{{ al.dotStyle }}"></div>
+                        <div style="font-size:12.5px;font-weight:600;flex:1;">{{ al.name }}</div>
+                        <div style="font-size:12.5px;color:rgba(235,235,245,0.5);font-variant-numeric:tabular-nums;">{{ al.pct }}</div>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+              </div>
+
+              <div style="scroll-snap-align:start;flex:none;width:294px;height:164px;box-sizing:border-box;padding:16px 18px;border-radius:26px;background:linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.035));backdrop-filter:blur(26px) saturate(170%);-webkit-backdrop-filter:blur(26px) saturate(170%);border:0.5px solid rgba(255,255,255,0.09);box-shadow:0 14px 30px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.08);display:flex;flex-direction:column;">
+                <div style="font-size:12px;font-weight:700;letter-spacing:0.7px;color:rgba(235,235,245,0.44);">REBALANCING</div>
+                <div style="font-size:17px;font-weight:700;letter-spacing:-0.3px;margin-top:12px;line-height:1.3;">{{ rebTitle }}</div>
+                <div style="font-size:13px;color:rgba(235,235,245,0.55);margin-top:5px;line-height:1.45;">{{ rebBody }}</div>
+                <div style="margin-top:auto;display:flex;">
+                  <div style="font-size:12.5px;font-weight:600;color:#7BE0AE;padding:6px 12px;border-radius:999px;background:rgba(123,224,174,0.12);border:0.5px solid rgba(123,224,174,0.18);">Review suggestion</div>
+                </div>
+              </div>
+
+              <div style="scroll-snap-align:start;flex:none;width:294px;height:164px;box-sizing:border-box;padding:16px 18px;border-radius:26px;background:linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.035));backdrop-filter:blur(26px) saturate(170%);-webkit-backdrop-filter:blur(26px) saturate(170%);border:0.5px solid rgba(255,255,255,0.09);box-shadow:0 14px 30px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.08);">
+                <div style="font-size:12px;font-weight:700;letter-spacing:0.7px;color:rgba(235,235,245,0.44);">DIVERSIFICATION SCORE</div>
+                <div style="display:flex;align-items:center;gap:18px;margin-top:14px;">
+                  <div style="{{ divConic }}">
+                    <div style="font-size:24px;font-weight:800;letter-spacing:-0.8px;font-variant-numeric:tabular-nums;">{{ divScore }}</div>
+                  </div>
+                  <div style="flex:1;">
+                    <div style="font-size:15px;font-weight:700;">{{ divGrade }}</div>
+                    <div style="font-size:12.5px;color:rgba(235,235,245,0.55);line-height:1.45;margin-top:4px;">{{ divSub }}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div style="scroll-snap-align:start;flex:none;width:294px;height:164px;box-sizing:border-box;padding:16px 18px;border-radius:26px;background:linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.035));backdrop-filter:blur(26px) saturate(170%);-webkit-backdrop-filter:blur(26px) saturate(170%);border:0.5px solid rgba(255,255,255,0.09);box-shadow:0 14px 30px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.08);">
+                <div style="font-size:12px;font-weight:700;letter-spacing:0.7px;color:rgba(235,235,245,0.44);">RISK OVERVIEW</div>
+                <div style="display:flex;flex-direction:column;gap:11px;margin-top:16px;">
+                  <sc-for list="{{ riskRows }}" as="rk" hint-placeholder-count="3">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                      <div style="width:104px;font-size:12.5px;color:rgba(235,235,245,0.55);">{{ rk.k }}</div>
+                      <div style="flex:1;height:4px;border-radius:99px;background:rgba(255,255,255,0.08);position:relative;overflow:hidden;">
+                        <div style="{{ rk.barStyle }}"></div>
+                      </div>
+                      <div style="width:52px;text-align:right;font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums;">{{ rk.v }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+
+            <div style="padding:16px 20px 0;">
+              <div style="display:flex;align-items:center;gap:7px;height:38px;border-radius:13px;background:rgba(118,118,128,0.16);padding:0 10px;border:0.5px solid rgba(255,255,255,0.04);">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none;opacity:0.45;"><circle cx="11" cy="11" r="7" stroke="#EBEBF5" stroke-width="2"></circle><path d="M16.8 16.8L21 21" stroke="#EBEBF5" stroke-width="2" stroke-linecap="round"></path></svg>
+                <input value="{{ searchVal }}" onChange="{{ onSearch }}" placeholder="Search positions" style="flex:1;font-size:15px;color:#F2F2F4;height:100%;"></input>
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 20px 10px;position:relative;">
+              <div style="display:flex;align-items:baseline;gap:7px;">
+                <div style="font-size:20px;font-weight:800;letter-spacing:-0.4px;">Positions</div>
+                <div style="font-size:13px;color:rgba(235,235,245,0.36);font-weight:600;">{{ posCount }}</div>
+              </div>
+              <button onClick="{{ toggleSortMenu }}" style="display:flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;color:rgba(235,235,245,0.62);padding:6px 11px;border-radius:999px;background:rgba(120,120,128,0.18);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:0.5px solid rgba(255,255,255,0.08);">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M7 20V6M4 9l3-3 3 3M17 4v14M14 15l3 3 3-3" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                {{ sortLabel }}
+              </button>
+              <sc-if value="{{ sortOpen }}" hint-placeholder-val="{{ false }}">
+                <div style="position:absolute;top:44px;right:20px;z-index:40;width:218px;border-radius:16px;overflow:hidden;background:rgba(38,38,42,0.78);backdrop-filter:blur(40px) saturate(180%);-webkit-backdrop-filter:blur(40px) saturate(180%);border:0.5px solid rgba(255,255,255,0.12);box-shadow:0 18px 44px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08);animation:ftMenuIn 0.18s cubic-bezier(0.2,0.9,0.3,1.2);transform-origin:top right;">
+                  <div style="padding:9px 14px 7px;font-size:11.5px;font-weight:600;color:rgba(235,235,245,0.45);border-bottom:0.5px solid rgba(255,255,255,0.08);">Sort by</div>
+                  <sc-for list="{{ sortItems }}" as="si" hint-placeholder-count="5">
+                    <button onClick="{{ si.pick }}" style="display:flex;width:100%;align-items:center;justify-content:space-between;padding:10px 14px;font-size:14.5px;color:#F2F2F4;border-bottom:0.5px solid rgba(255,255,255,0.05);text-align:left;">
+                      {{ si.label }}
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" opacity="{{ si.checkOpacity }}"><path d="M5 13l4 4L19 7" stroke="#7BE0AE" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                    </button>
+                  </sc-for>
+                </div>
+              </sc-if>
+            </div>
+
+            <div data-screen-label="Positions list" style="margin:0 16px;border-radius:24px;background:#101013;border:0.5px solid rgba(255,255,255,0.07);overflow:hidden;box-shadow:0 10px 26px rgba(0,0,0,0.32);">
+              <sc-for list="{{ rows }}" as="r" hint-placeholder-count="7">
+                <div style="position:relative;overflow:hidden;">
+                  <div style="position:absolute;inset:0;display:flex;justify-content:flex-end;">
+                    <button onClick="{{ r.onEdit }}" style="width:74px;background:rgba(120,120,128,0.32);color:#fff;font-size:13px;font-weight:600;">Edit</button>
+                    <button onClick="{{ r.onDelete }}" style="width:74px;background:#C0453D;color:#fff;font-size:13px;font-weight:600;">Delete</button>
+                  </div>
+                  <div ref="{{ r.setEl }}" onPointerDown="{{ r.onDown }}" onPointerMove="{{ r.onMove }}" onPointerUp="{{ r.onUp }}" onPointerCancel="{{ r.onUp }}" style="{{ r.frontStyle }}">
+                    <div style="{{ r.logoStyle }}">{{ r.initial }}</div>
+                    <div style="flex:1;min-width:0;">
+                      <div style="font-size:15px;font-weight:700;letter-spacing:-0.2px;">{{ r.ticker }}</div>
+                      <div style="font-size:11.5px;color:rgba(235,235,245,0.5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:118px;margin-top:1px;">{{ r.name }}</div>
+                      <div style="font-size:11px;color:rgba(235,235,245,0.32);font-variant-numeric:tabular-nums;margin-top:2px;">{{ r.sub }}</div>
+                    </div>
+                    <svg width="52" height="20" viewBox="0 0 56 20" fill="none" style="flex:none;margin-right:2px;">
+                      <path d="{{ r.spark }}" stroke="{{ r.sparkColor }}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+                    </svg>
+                    <div style="text-align:right;flex:none;">
+                      <div style="font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-0.2px;">{{ r.price }}</div>
+                      <div style="{{ r.plStyle }}">{{ r.pl }}</div>
+                    </div>
+                  </div>
+                </div>
+              </sc-for>
+              <sc-if value="{{ noResults }}" hint-placeholder-val="{{ false }}">
+                <div style="padding:26px;text-align:center;font-size:13.5px;color:rgba(235,235,245,0.4);">No positions match your search.</div>
+              </sc-if>
+            </div>
+
+            <div style="text-align:center;padding:18px 40px 0;font-size:11.5px;color:rgba(235,235,245,0.28);line-height:1.5;">Swipe a row for actions · Tap for details</div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isBubbles }}" hint-placeholder-val="{{ false }}">
+          <div data-screen-label="Bubble View" style="position:absolute;inset:0;display:flex;flex-direction:column;padding-top:60px;box-sizing:border-box;animation:ftScreenIn 0.34s cubic-bezier(0.25,0.8,0.3,1);">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:4px 20px 0;">
+              <div>
+                <div style="font-size:11px;font-weight:700;letter-spacing:1.3px;color:rgba(235,235,245,0.34);">PORTFOLIO</div>
+                <div style="font-size:25px;font-weight:800;letter-spacing:-0.7px;font-variant-numeric:tabular-nums;margin-top:1px;">{{ bubbleHeroValue }}</div>
+                <div style="{{ bubbleHeroDeltaStyle }}">{{ bubbleHeroDelta }}</div>
+              </div>
+              <div style="display:flex;gap:8px;">
+                <button onClick="{{ openCorr }}" aria-label="Correlation info" style="width:34px;height:34px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:rgba(120,120,128,0.22);backdrop-filter:blur(16px) saturate(170%);-webkit-backdrop-filter:blur(16px) saturate(170%);border:0.5px solid rgba(255,255,255,0.12);box-shadow:inset 0 1px 0 rgba(255,255,255,0.12);color:rgba(235,235,245,0.75);">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"></circle><path d="M12 11v5.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path><circle cx="12" cy="7.6" r="1.3" fill="currentColor"></circle></svg>
+                </button>
+                <button onClick="{{ restoreBubble }}" aria-label="Restore bubble" style="{{ restoreStyle }}">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M2.8 4.2v5.4h5.4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path><path d="M5 14.6a8 8 0 1 0 1.2-7.2L2.8 9.6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                  <sc-if value="{{ poppedAny }}" hint-placeholder-val="{{ false }}">
+                    <div style="position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;border-radius:99px;background:#7BE0AE;color:#04140C;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px;box-shadow:0 2px 6px rgba(0,0,0,0.4);">{{ poppedCount }}</div>
+                  </sc-if>
+                </button>
+              </div>
+            </div>
+            <div style="text-align:center;font-size:11.5px;color:rgba(235,235,245,0.3);padding:8px 20px 0;font-weight:500;">Tap &amp; drag to move · Hold to select or create clusters</div>
+
+            <div ref="{{ fieldRef }}" onPointerDown="{{ fieldDown }}" style="flex:1;position:relative;touch-action:none;overflow:hidden;margin-top:2px;">
+              <sc-for list="{{ bubbles }}" as="b" hint-placeholder-count="8">
+                <div ref="{{ b.setEl }}" onPointerDown="{{ b.down }}" onPointerMove="{{ b.move }}" onPointerUp="{{ b.up }}" onPointerCancel="{{ b.cancel }}" style="{{ b.outerStyle }}">
+                  <div style="{{ b.faceStyle }}">
+                    <sc-if value="{{ b.isCluster }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;align-items:center;gap:4px;margin-bottom:1px;opacity:0.8;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="9.5" r="5" stroke="currentColor" stroke-width="2.2"></circle><circle cx="16.6" cy="15.8" r="3.2" stroke="currentColor" stroke-width="2.2"></circle></svg>
+                        <span style="font-size:11px;font-weight:800;">{{ b.count }}</span>
+                      </div>
+                    </sc-if>
+                    <div style="{{ b.labelStyle }}">{{ b.label }}</div>
+                    <sc-if value="{{ b.showPct }}" hint-placeholder-val="{{ false }}">
+                      <div style="{{ b.pctStyle }}">{{ b.pct }}</div>
+                    </sc-if>
+                  </div>
+                </div>
+              </sc-for>
+
+              <sc-if value="{{ infoOn }}" hint-placeholder-val="{{ false }}">
+                <div data-screen-label="Bubble popover" style="{{ infoStyle }}">
+                  <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;">
+                    <div style="font-size:14.5px;font-weight:800;letter-spacing:-0.2px;">{{ infoTicker }}</div>
+                    <div style="font-size:13.5px;font-weight:700;font-variant-numeric:tabular-nums;">{{ infoValue }}</div>
+                  </div>
+                  <div style="font-size:11.5px;color:rgba(235,235,245,0.5);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ infoName }}</div>
+                  <div style="{{ infoPlStyle }}">{{ infoPl }}</div>
+                  <div style="display:flex;gap:8px;margin-top:11px;">
+                    <button onClick="{{ infoDetails }}" style="flex:1;padding:7px 0;border-radius:10px;background:rgba(123,224,174,0.16);border:0.5px solid rgba(123,224,174,0.22);color:#7BE0AE;font-size:12.5px;font-weight:700;">Details</button>
+                    <button onClick="{{ infoPop }}" style="flex:1;padding:7px 0;border-radius:10px;background:rgba(120,120,128,0.22);border:0.5px solid rgba(255,255,255,0.1);color:#F2F2F4;font-size:12.5px;font-weight:700;">Pop</button>
+                  </div>
+                </div>
+              </sc-if>
+            </div>
+
+            <div style="position:absolute;left:50%;bottom:102px;transform:translateX(-50%);z-index:28;">
+              <sc-if value="{{ selectMode }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;align-items:center;gap:4px;padding:5px 6px;border-radius:999px;background:rgba(22,22,25,0.66);backdrop-filter:blur(36px) saturate(185%);-webkit-backdrop-filter:blur(36px) saturate(185%);border:0.5px solid rgba(255,255,255,0.1);box-shadow:0 14px 36px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.11);white-space:nowrap;animation:ftMenuIn 0.22s cubic-bezier(0.2,0.9,0.3,1.15);">
+                  <div style="font-size:12.5px;font-weight:600;color:rgba(235,235,245,0.55);padding:0 8px 0 10px;font-variant-numeric:tabular-nums;">{{ selCount }}</div>
+                  <button onClick="{{ createClusterFn }}" style="{{ clusterBtnStyle }}">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="9.5" r="5" stroke="currentColor" stroke-width="2.2"></circle><circle cx="16.6" cy="15.8" r="3.2" stroke="currentColor" stroke-width="2.2"></circle></svg>
+                    Cluster
+                  </button>
+                  <button onClick="{{ popSelectedFn }}" style="display:flex;align-items:center;gap:5px;padding:8px 13px;border-radius:999px;font-size:13px;font-weight:700;color:#F0A198;">Pop</button>
+                  <div style="width:0.5px;height:18px;background:rgba(255,255,255,0.12);"></div>
+                  <button onClick="{{ doneSelect }}" style="padding:8px 13px;border-radius:999px;font-size:13px;font-weight:700;color:#F2F2F4;">Done</button>
+                </div>
+              </sc-if>
+              <sc-if value="{{ notSelectMode }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;align-items:center;gap:4px;padding:5px 6px;border-radius:999px;background:rgba(22,22,25,0.66);backdrop-filter:blur(36px) saturate(185%);-webkit-backdrop-filter:blur(36px) saturate(185%);border:0.5px solid rgba(255,255,255,0.1);box-shadow:0 14px 36px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.11);white-space:nowrap;">
+                  <button onClick="{{ openAdd }}" style="display:flex;align-items:center;gap:6px;padding:8px 13px;border-radius:999px;font-size:13px;font-weight:600;color:#F2F2F4;">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#7BE0AE" stroke-width="2.6" stroke-linecap="round"></path></svg>
+                    Add
+                  </button>
+                  <div style="width:0.5px;height:18px;background:rgba(255,255,255,0.12);"></div>
+                  <button onClick="{{ openCorr }}" style="display:flex;align-items:center;gap:6px;padding:8px 13px;border-radius:999px;font-size:13px;font-weight:600;color:#F2F2F4;">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" opacity="0.7"></circle><path d="M12 11v5.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"></path><circle cx="12" cy="7.6" r="1.4" fill="currentColor"></circle></svg>
+                    Correlation
+                  </button>
+                  <div style="width:0.5px;height:18px;background:rgba(255,255,255,0.12);"></div>
+                  <button onClick="{{ restoreBubble }}" style="{{ restoreToolbarStyle }}">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M2.8 4.2v5.4h5.4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path><path d="M5 14.6a8 8 0 1 0 1.2-7.2L2.8 9.6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                    Restore
+                  </button>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ isWatchlist }}" hint-placeholder-val="{{ false }}">
+          <div data-screen-label="Watchlist" data-hidescroll style="position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;padding:60px 0 150px;box-sizing:border-box;animation:ftScreenIn 0.34s cubic-bezier(0.25,0.8,0.3,1);">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 20px 0;">
+              <div style="font-size:13px;font-weight:600;color:rgba(235,235,245,0.45);">{{ wCount }}</div>
+              <button onClick="{{ openAdd }}" aria-label="Add to watchlist" style="width:34px;height:34px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:rgba(120,120,128,0.22);backdrop-filter:blur(16px) saturate(170%);-webkit-backdrop-filter:blur(16px) saturate(170%);border:0.5px solid rgba(255,255,255,0.12);box-shadow:inset 0 1px 0 rgba(255,255,255,0.12);color:#7BE0AE;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"></path></svg>
+              </button>
+            </div>
+            <div style="padding:2px 20px 0;font-size:33px;font-weight:800;letter-spacing:-0.7px;line-height:1.15;">Watchlist</div>
+            <div style="display:flex;align-items:center;gap:8px;margin:14px 20px 0;padding:11px 14px;border-radius:14px;background:rgba(255,255,255,0.035);border:1px dashed rgba(235,235,245,0.16);">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none;opacity:0.45;"><circle cx="12" cy="12" r="8.5" stroke="#EBEBF5" stroke-width="1.6" stroke-dasharray="3 3.4"></circle></svg>
+              <div style="font-size:12px;color:rgba(235,235,245,0.5);line-height:1.45;">Ghost bubbles — they float in Bubble View but never affect your portfolio value.</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px;padding:16px 16px 0;">
+              <sc-for list="{{ wRows }}" as="w" hint-placeholder-count="4">
+                <div style="position:relative;overflow:hidden;border-radius:18px;">
+                  <div style="position:absolute;inset:0;display:flex;justify-content:flex-end;border-radius:18px;overflow:hidden;">
+                    <button onClick="{{ w.onConvert }}" style="width:66px;background:#1E7A54;color:#fff;font-size:11.5px;font-weight:700;">Convert</button>
+                    <button onClick="{{ w.onAlert }}" style="width:66px;background:#48484E;color:#fff;font-size:11.5px;font-weight:700;">Alert</button>
+                    <button onClick="{{ w.onDelete }}" style="width:66px;background:#C0453D;color:#fff;font-size:11.5px;font-weight:700;">Delete</button>
+                  </div>
+                  <div ref="{{ w.setEl }}" onPointerDown="{{ w.onDown }}" onPointerMove="{{ w.onMove }}" onPointerUp="{{ w.onUp }}" onPointerCancel="{{ w.onUp }}" style="{{ w.frontStyle }}">
+                    <div style="{{ w.logoStyle }}">{{ w.initial }}</div>
+                    <div style="flex:1;min-width:0;">
+                      <div style="font-size:14.5px;font-weight:700;letter-spacing:-0.2px;color:rgba(235,235,245,0.85);">{{ w.ticker }}</div>
+                      <div style="font-size:11.5px;color:rgba(235,235,245,0.42);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;">{{ w.name }}</div>
+                    </div>
+                    <div style="text-align:right;flex:none;">
+                      <div style="font-size:14.5px;font-weight:650;font-variant-numeric:tabular-nums;color:rgba(235,235,245,0.82);">{{ w.price }}</div>
+                      <div style="{{ w.chgStyle }}">{{ w.chg }}</div>
+                    </div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+            <sc-if value="{{ wEmpty }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:40px 40px 0;text-align:center;">
+                <div style="font-size:14px;font-weight:600;color:rgba(235,235,245,0.55);">Nothing on your watchlist</div>
+                <div style="font-size:12.5px;color:rgba(235,235,245,0.35);margin-top:5px;line-height:1.5;">Add assets you want to track without counting them in your portfolio.</div>
+              </div>
+            </sc-if>
+            <div style="text-align:center;padding:16px 40px 0;font-size:11.5px;color:rgba(235,235,245,0.28);">Swipe for Convert · Alert · Delete</div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+          <div data-screen-label="Settings" data-hidescroll style="position:absolute;inset:0;overflow-y:auto;padding:60px 0 150px;box-sizing:border-box;animation:ftScreenIn 0.34s cubic-bezier(0.25,0.8,0.3,1);">
+            <div style="padding:14px 20px 0;font-size:33px;font-weight:800;letter-spacing:-0.7px;line-height:1.15;">Settings</div>
+
+            <div style="padding:22px 20px 8px;font-size:11px;font-weight:700;letter-spacing:1.1px;color:rgba(235,235,245,0.32);">GENERAL</div>
+            <div style="margin:0 16px;border-radius:20px;background:rgba(255,255,255,0.05);border:0.5px solid rgba(255,255,255,0.07);overflow:hidden;">
+              <sc-for list="{{ generalRows }}" as="gr" hint-placeholder-count="3">
+                <button onClick="{{ gr.tap }}" style="{{ gr.rowStyle }}">
+                  <div style="font-size:15.5px;font-weight:500;flex:1;text-align:left;">{{ gr.label }}</div>
+                  <div style="font-size:14.5px;color:rgba(235,235,245,0.5);margin-right:8px;">{{ gr.v }}</div>
+                  <svg width="7" height="12" viewBox="0 0 8 14" fill="none"><path d="M1 1l6 6-6 6" stroke="rgba(235,235,245,0.3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                </button>
+              </sc-for>
+            </div>
+
+            <div style="padding:24px 20px 8px;font-size:11px;font-weight:700;letter-spacing:1.1px;color:rgba(235,235,245,0.32);">SECURITY &amp; PRIVACY</div>
+            <div style="margin:0 16px;border-radius:20px;background:rgba(255,255,255,0.05);border:0.5px solid rgba(255,255,255,0.07);overflow:hidden;">
+              <sc-for list="{{ toggleRows }}" as="tg" hint-placeholder-count="3">
+                <div style="{{ tg.rowStyle }}">
+                  <div style="font-size:15.5px;font-weight:500;flex:1;">{{ tg.label }}</div>
+                  <button onClick="{{ tg.tap }}" aria-label="{{ tg.label }}" style="{{ tg.trackStyle }}">
+                    <div style="{{ tg.knobStyle }}"></div>
+                  </button>
+                </div>
+              </sc-for>
+            </div>
+            <div style="padding:8px 32px 0;font-size:12px;color:rgba(235,235,245,0.32);line-height:1.5;">Privacy Mode hides all monetary values across the app and widgets.</div>
+
+            <div style="padding:24px 20px 8px;font-size:11px;font-weight:700;letter-spacing:1.1px;color:rgba(235,235,245,0.32);">ABOUT</div>
+            <div style="margin:0 16px;border-radius:20px;background:rgba(255,255,255,0.05);border:0.5px solid rgba(255,255,255,0.07);overflow:hidden;">
+              <sc-for list="{{ aboutRows }}" as="ab" hint-placeholder-count="3">
+                <button onClick="{{ ab.tap }}" style="{{ ab.rowStyle }}">
+                  <div style="font-size:15.5px;font-weight:500;flex:1;text-align:left;">{{ ab.label }}</div>
+                  <div style="font-size:14.5px;color:rgba(235,235,245,0.5);margin-right:8px;">{{ ab.v }}</div>
+                  <svg width="7" height="12" viewBox="0 0 8 14" fill="none" opacity="{{ ab.chevOpacity }}"><path d="M1 1l6 6-6 6" stroke="rgba(235,235,245,0.3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                </button>
+              </sc-for>
+            </div>
+            <div style="text-align:center;padding:26px 20px 0;font-size:11.5px;color:rgba(235,235,245,0.24);">followtrend for iOS 26</div>
+          </div>
+        </sc-if>
+
+        <div style="position:absolute;top:0;left:0;right:0;height:64px;z-index:26;pointer-events:none;background:linear-gradient(180deg,rgba(2,2,2,0.88) 12%,rgba(2,2,2,0));"></div>
+
+        <div data-screen-label="Tab bar" style="position:absolute;left:50%;bottom:26px;transform:translateX(-50%);z-index:30;display:flex;gap:2px;padding:5px;border-radius:999px;background:rgba(22,22,25,0.6);backdrop-filter:blur(36px) saturate(185%);-webkit-backdrop-filter:blur(36px) saturate(185%);border:0.5px solid rgba(255,255,255,0.1);box-shadow:0 14px 36px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.11);">
+          <button onClick="{{ goPortfolio }}" style="{{ tabPortfolioStyle }}">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M3.5 16.5l5.2-6.2 4 3.2 6-7.6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path><path d="M3.5 21h17" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.5"></path></svg>
+            <span style="font-size:10px;font-weight:600;letter-spacing:0.1px;">Portfolio</span>
+          </button>
+          <button onClick="{{ goBubbles }}" style="{{ tabBubblesStyle }}">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none"><circle cx="9.5" cy="9" r="5.5" stroke="currentColor" stroke-width="2"></circle><circle cx="17.5" cy="16" r="3.4" stroke="currentColor" stroke-width="2"></circle><circle cx="8" cy="18.6" r="2" stroke="currentColor" stroke-width="1.8"></circle></svg>
+            <span style="font-size:10px;font-weight:600;letter-spacing:0.1px;">Bubbles</span>
+          </button>
+          <button onClick="{{ goWatchlist }}" style="{{ tabWatchStyle }}">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M2.5 12s3.4-6.2 9.5-6.2S21.5 12 21.5 12s-3.4 6.2-9.5 6.2S2.5 12 2.5 12z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"></path><circle cx="12" cy="12" r="2.8" stroke="currentColor" stroke-width="2"></circle></svg>
+            <span style="font-size:10px;font-weight:600;letter-spacing:0.1px;">Watchlist</span>
+          </button>
+          <button onClick="{{ goSettings }}" style="{{ tabSettingsStyle }}">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M4 7h9M17.5 7H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path><circle cx="15.2" cy="7" r="2.3" stroke="currentColor" stroke-width="2"></circle><path d="M4 16.6h2.5M11 16.6h9" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path><circle cx="8.8" cy="16.6" r="2.3" stroke="currentColor" stroke-width="2"></circle></svg>
+            <span style="font-size:10px;font-weight:600;letter-spacing:0.1px;">Settings</span>
+          </button>
+        </div>
+
+        <sc-if value="{{ sortOpen }}" hint-placeholder-val="{{ false }}">
+          <div onClick="{{ closeSortMenu }}" style="position:absolute;inset:0;z-index:34;"></div>
+        </sc-if>
+
+        <sc-if value="{{ addOpen }}" hint-placeholder-val="{{ false }}">
+          <div onClick="{{ closeAdd }}" style="position:absolute;inset:0;z-index:50;background:rgba(0,0,0,0.44);animation:ftFadeIn 0.3s;"></div>
+          <div data-screen-label="Add Asset" style="{{ addSheetStyle }}">
+            <div style="width:36px;height:5px;border-radius:99px;background:rgba(255,255,255,0.22);margin:8px auto 0;flex:none;"></div>
+            <div style="display:flex;align-items:center;padding:10px 16px 4px;flex:none;">
+              <button onClick="{{ closeAdd }}" style="font-size:15px;color:#7BE0AE;font-weight:500;width:64px;text-align:left;">Cancel</button>
+              <div style="flex:1;text-align:center;font-size:16px;font-weight:700;letter-spacing:-0.2px;">Add Asset</div>
+              <div style="width:64px;"></div>
+            </div>
+            <div style="padding:10px 16px 0;flex:none;">
+              <div style="display:flex;align-items:center;gap:7px;height:38px;border-radius:13px;background:rgba(118,118,128,0.18);padding:0 10px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none;opacity:0.45;"><circle cx="11" cy="11" r="7" stroke="#EBEBF5" stroke-width="2"></circle><path d="M16.8 16.8L21 21" stroke="#EBEBF5" stroke-width="2" stroke-linecap="round"></path></svg>
+                <input value="{{ addSearch }}" onChange="{{ onAddSearch }}" placeholder="Ticker or company name" style="flex:1;font-size:15px;color:#F2F2F4;height:100%;"></input>
+                <sc-if value="{{ addHasQuery }}" hint-placeholder-val="{{ false }}">
+                  <button onClick="{{ clearAddSearch }}" style="width:18px;height:18px;border-radius:99px;background:rgba(235,235,245,0.25);display:flex;align-items:center;justify-content:center;flex:none;">
+                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="#0A0A0B" stroke-width="3.4" stroke-linecap="round"></path></svg>
+                  </button>
+                </sc-if>
+              </div>
+            </div>
+            <sc-if value="{{ addShowSuggest }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:12px 16px 0;flex:none;">
+                <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:rgba(235,235,245,0.32);">SUGGESTED</div>
+                <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+                  <sc-for list="{{ addSuggest }}" as="sg" hint-placeholder-count="5">
+                    <button onClick="{{ sg.pick }}" style="padding:6px 13px;border-radius:999px;background:rgba(120,120,128,0.2);border:0.5px solid rgba(255,255,255,0.08);font-size:13px;font-weight:600;color:rgba(235,235,245,0.8);">{{ sg.label }}</button>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-if>
+            <div style="margin:14px 16px 0;position:relative;display:flex;background:rgba(118,118,128,0.13);border-radius:12px;padding:2.5px;flex:none;">
+              <div style="{{ addThumbStyle }}"></div>
+              <sc-for list="{{ addTabs }}" as="at" hint-placeholder-count="3">
+                <button onClick="{{ at.go }}" style="{{ at.style }}">{{ at.label }}</button>
+              </sc-for>
+            </div>
+            <div data-hidescroll style="flex:1;overflow-y:auto;padding:12px 16px 30px;">
+              <div style="border-radius:20px;background:rgba(255,255,255,0.045);border:0.5px solid rgba(255,255,255,0.07);overflow:hidden;">
+                <sc-for list="{{ addResults }}" as="ar" hint-placeholder-count="6">
+                  <button onClick="{{ ar.pick }}" style="{{ ar.rowStyle }}">
+                    <div style="{{ ar.logoStyle }}">{{ ar.initial }}</div>
+                    <div style="flex:1;min-width:0;text-align:left;">
+                      <div style="display:flex;align-items:center;gap:6px;">
+                        <span style="font-size:15px;font-weight:700;letter-spacing:-0.2px;">{{ ar.ticker }}</span>
+                        <sc-if value="{{ ar.owned }}" hint-placeholder-val="{{ false }}">
+                          <span style="font-size:9.5px;font-weight:700;letter-spacing:0.4px;color:#7BE0AE;background:rgba(123,224,174,0.13);padding:2px 6px;border-radius:99px;">OWNED</span>
+                        </sc-if>
+                      </div>
+                      <div style="font-size:12px;color:rgba(235,235,245,0.5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;">{{ ar.name }}</div>
+                    </div>
+                    <div style="text-align:right;flex:none;">
+                      <div style="font-size:14.5px;font-weight:700;font-variant-numeric:tabular-nums;">{{ ar.price }}</div>
+                      <div style="{{ ar.chgStyle }}">{{ ar.chg }}</div>
+                    </div>
+                  </button>
+                </sc-for>
+                <sc-if value="{{ addEmpty }}" hint-placeholder-val="{{ false }}">
+                  <div style="padding:28px;text-align:center;font-size:13.5px;color:rgba(235,235,245,0.4);">No matches — try another ticker.</div>
+                </sc-if>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ detailOn }}" hint-placeholder-val="{{ false }}">
+          <div onClick="{{ closeDetail }}" style="position:absolute;inset:0;z-index:60;background:rgba(0,0,0,0.48);animation:ftFadeIn 0.3s;"></div>
+          <div data-screen-label="Asset Detail" style="{{ detailSheetStyle }}">
+            <div style="width:36px;height:5px;border-radius:99px;background:rgba(255,255,255,0.22);margin:8px auto 0;flex:none;"></div>
+            <div data-hidescroll style="flex:1;overflow-y:auto;padding:14px 20px 34px;">
+              <div style="display:flex;align-items:center;gap:13px;">
+                <div style="{{ dLogoStyle }}">{{ dInitial }}</div>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:22px;font-weight:800;letter-spacing:-0.4px;">{{ dTicker }}</div>
+                  <div style="font-size:12.5px;color:rgba(235,235,245,0.5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ dName }}</div>
+                </div>
+                <div style="text-align:right;flex:none;">
+                  <div style="font-size:21px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-0.4px;">{{ dPrice }}</div>
+                  <div style="{{ dDayStyle }}">{{ dDay }}</div>
+                </div>
+              </div>
+
+              <div style="margin-top:14px;">
+                <svg width="100%" height="118" viewBox="0 0 358 118" preserveAspectRatio="none" style="display:block;">
+                  <defs>
+                    <linearGradient id="ftFillDM" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7BE0AE" stop-opacity="0.22"></stop><stop offset="1" stop-color="#7BE0AE" stop-opacity="0"></stop></linearGradient>
+                    <linearGradient id="ftFillDR" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E37B72" stop-opacity="0.2"></stop><stop offset="1" stop-color="#E37B72" stop-opacity="0"></stop></linearGradient>
+                  </defs>
+                  <path d="{{ dArea }}" fill="{{ dAreaFill }}"></path>
+                  <path d="{{ dLine }}" fill="none" stroke="{{ dLineColor }}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path>
+                </svg>
+                <div style="display:flex;justify-content:space-between;font-size:10.5px;color:rgba(235,235,245,0.3);margin-top:5px;font-weight:600;letter-spacing:0.3px;"><span>PAST MONTH</span><span>{{ dRangeNote }}</span></div>
+              </div>
+
+              <div style="margin-top:16px;border-radius:20px;background:rgba(255,255,255,0.045);border:0.5px solid rgba(255,255,255,0.07);padding:4px 16px;display:grid;grid-template-columns:1fr 1fr;column-gap:24px;">
+                <sc-for list="{{ dStats }}" as="ds" hint-placeholder-count="6">
+                  <div style="{{ ds.cellStyle }}">
+                    <div style="font-size:11px;font-weight:600;color:rgba(235,235,245,0.4);letter-spacing:0.3px;">{{ ds.k }}</div>
+                    <div style="font-size:14.5px;font-weight:650;font-variant-numeric:tabular-nums;margin-top:2px;">{{ ds.v }}</div>
+                  </div>
+                </sc-for>
+              </div>
+
+              <sc-if value="{{ dOwnedView }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top:16px;border-radius:20px;background:rgba(123,224,174,0.07);border:0.5px solid rgba(123,224,174,0.14);padding:14px 16px;">
+                  <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:rgba(123,224,174,0.75);">YOUR POSITION</div>
+                  <div style="display:flex;justify-content:space-between;margin-top:10px;">
+                    <div><div style="font-size:11px;color:rgba(235,235,245,0.42);">Shares</div><div style="font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:2px;">{{ dPosShares }}</div></div>
+                    <div><div style="font-size:11px;color:rgba(235,235,245,0.42);">Avg cost</div><div style="font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:2px;">{{ dPosAvg }}</div></div>
+                    <div style="text-align:right;"><div style="font-size:11px;color:rgba(235,235,245,0.42);">Return</div><div style="{{ dPosPlStyle }}">{{ dPosPl }}</div></div>
+                  </div>
+                </div>
+                <button onClick="{{ dEdit }}" style="margin-top:12px;width:100%;padding:14px 0;border-radius:16px;background:rgba(120,120,128,0.22);border:0.5px solid rgba(255,255,255,0.1);color:#F2F2F4;font-size:15.5px;font-weight:700;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);">Edit Position</button>
+              </sc-if>
+
+              <sc-if value="{{ dWatchView }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top:16px;display:flex;align-items:center;gap:8px;padding:11px 14px;border-radius:14px;background:rgba(255,255,255,0.04);border:1px dashed rgba(235,235,245,0.18);">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;opacity:0.5;"><path d="M2.5 12s3.4-6.2 9.5-6.2S21.5 12 21.5 12s-3.4 6.2-9.5 6.2S2.5 12 2.5 12z" stroke="#EBEBF5" stroke-width="2" stroke-linejoin="round"></path><circle cx="12" cy="12" r="2.8" stroke="#EBEBF5" stroke-width="2"></circle></svg>
+                  <div style="font-size:12.5px;color:rgba(235,235,245,0.55);line-height:1.4;">On your watchlist — doesn’t affect portfolio value.</div>
+                </div>
+                <button onClick="{{ dConvert }}" style="margin-top:12px;width:100%;padding:14px 0;border-radius:16px;background:#7BE0AE;color:#04140C;font-size:15.5px;font-weight:800;box-shadow:0 8px 24px rgba(123,224,174,0.22);">Convert to Position</button>
+                <button onClick="{{ dAlert }}" style="margin-top:9px;width:100%;padding:13px 0;border-radius:16px;background:rgba(120,120,128,0.22);border:0.5px solid rgba(255,255,255,0.1);color:#F2F2F4;font-size:14.5px;font-weight:700;">Set Price Alert</button>
+              </sc-if>
+
+              <sc-if value="{{ dNoneView }}" hint-placeholder-val="{{ false }}">
+                <button onClick="{{ dAddPos }}" style="margin-top:18px;width:100%;padding:14px 0;border-radius:16px;background:#7BE0AE;color:#04140C;font-size:15.5px;font-weight:800;box-shadow:0 8px 24px rgba(123,224,174,0.22);">Add to Portfolio</button>
+                <button onClick="{{ dAddWatch }}" style="margin-top:9px;width:100%;padding:13px 0;border-radius:16px;background:rgba(120,120,128,0.22);border:0.5px solid rgba(255,255,255,0.1);color:#F2F2F4;font-size:14.5px;font-weight:700;">Add to Watchlist</button>
+              </sc-if>
+
+              <sc-if value="{{ dFormOn }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top:18px;">
+                  <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:rgba(235,235,245,0.32);padding:0 4px;">{{ dFormTitle }}</div>
+                  <div style="margin-top:8px;border-radius:16px;background:rgba(255,255,255,0.055);border:0.5px solid rgba(255,255,255,0.07);overflow:hidden;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:0.5px solid rgba(255,255,255,0.07);">
+                      <div style="font-size:15px;font-weight:500;">Shares</div>
+                      <input value="{{ formShares }}" onChange="{{ onFormShares }}" inputMode="decimal" placeholder="0" style="text-align:right;font-size:16px;font-weight:600;color:#7BE0AE;width:130px;font-variant-numeric:tabular-nums;"></input>
+                    </div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 16px;">
+                      <div style="font-size:15px;font-weight:500;">Average price</div>
+                      <input value="{{ formPrice }}" onChange="{{ onFormPrice }}" inputMode="decimal" placeholder="0.00" style="text-align:right;font-size:16px;font-weight:600;color:#7BE0AE;width:130px;font-variant-numeric:tabular-nums;"></input>
+                    </div>
+                  </div>
+                  <div style="font-size:12px;color:rgba(235,235,245,0.4);padding:9px 4px 0;font-variant-numeric:tabular-nums;">{{ dFormEst }}</div>
+                  <button onClick="{{ dSave }}" style="margin-top:12px;width:100%;padding:14px 0;border-radius:16px;background:#7BE0AE;color:#04140C;font-size:15.5px;font-weight:800;box-shadow:0 8px 24px rgba(123,224,174,0.22);">{{ dSaveLabel }}</button>
+                  <sc-if value="{{ dCanRemove }}" hint-placeholder-val="{{ false }}">
+                    <button onClick="{{ dRemove }}" style="margin-top:9px;width:100%;padding:13px 0;border-radius:16px;background:rgba(227,123,114,0.1);border:0.5px solid rgba(227,123,114,0.18);color:#F0A198;font-size:14.5px;font-weight:700;">Remove Position</button>
+                  </sc-if>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ clusterOn }}" hint-placeholder-val="{{ false }}">
+          <div onClick="{{ closeCluster }}" style="position:absolute;inset:0;z-index:44;background:rgba(2,2,2,0.62);backdrop-filter:blur(16px) saturate(140%);-webkit-backdrop-filter:blur(16px) saturate(140%);animation:ftFadeIn 0.32s;"></div>
+          <div data-screen-label="Cluster View" style="position:absolute;inset:0;z-index:45;pointer-events:none;">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:74px 20px 0;">
+              <div style="pointer-events:auto;">
+                <div style="display:flex;align-items:center;gap:7px;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="opacity:0.6;"><circle cx="9" cy="9.5" r="5" stroke="#EBEBF5" stroke-width="2.2"></circle><circle cx="16.6" cy="15.8" r="3.2" stroke="#EBEBF5" stroke-width="2.2"></circle></svg>
+                  <div style="font-size:12px;font-weight:700;letter-spacing:1px;color:rgba(235,235,245,0.5);">{{ clName }}</div>
+                </div>
+                <div style="font-size:27px;font-weight:800;letter-spacing:-0.7px;font-variant-numeric:tabular-nums;margin-top:3px;">{{ clValue }}</div>
+                <div style="{{ clReturnStyle }}">{{ clReturn }}</div>
+              </div>
+              <button onClick="{{ closeCluster }}" aria-label="Close cluster" style="pointer-events:auto;width:32px;height:32px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:rgba(120,120,128,0.28);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:0.5px solid rgba(255,255,255,0.12);color:rgba(235,235,245,0.8);">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"></path></svg>
+              </button>
+            </div>
+
+            <div style="{{ clRingStyle }}"></div>
+            <sc-for list="{{ clChildren }}" as="cc" hint-placeholder-count="3">
+              <div onClick="{{ cc.tap }}" style="{{ cc.wrapStyle }}">
+                <div style="{{ cc.faceStyle }}">
+                  <div style="{{ cc.labelStyle }}">{{ cc.label }}</div>
+                  <div style="{{ cc.pctStyle }}">{{ cc.pct }}</div>
+                </div>
+              </div>
+            </sc-for>
+
+            <div data-screen-label="Cluster analytics" style="position:absolute;left:16px;right:16px;bottom:24px;pointer-events:auto;border-radius:24px;padding:16px 18px 14px;background:rgba(20,20,23,0.78);backdrop-filter:blur(40px) saturate(180%);-webkit-backdrop-filter:blur(40px) saturate(180%);border:0.5px solid rgba(255,255,255,0.11);box-shadow:0 20px 50px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.09);animation:ftSheetUp 0.44s cubic-bezier(0.32,0.72,0,1);">
+              <div style="display:flex;flex-direction:column;gap:9px;">
+                <sc-for list="{{ clStats }}" as="cs" hint-placeholder-count="5">
+                  <div style="display:flex;align-items:center;justify-content:space-between;">
+                    <div style="font-size:12.5px;color:rgba(235,235,245,0.5);font-weight:500;">{{ cs.k }}</div>
+                    <div style="{{ cs.vStyle }}">{{ cs.v }}</div>
+                  </div>
+                </sc-for>
+              </div>
+              <button onClick="{{ openCorr }}" style="display:flex;align-items:center;gap:5px;margin-top:11px;font-size:12px;font-weight:600;color:#7BE0AE;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"></circle><path d="M12 11v5.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"></path><circle cx="12" cy="7.6" r="1.4" fill="currentColor"></circle></svg>
+                What does correlation mean?
+              </button>
+              <div style="display:flex;gap:9px;margin-top:12px;">
+                <button onClick="{{ breakClusterFn }}" style="flex:1;padding:11px 0;border-radius:14px;background:rgba(227,123,114,0.1);border:0.5px solid rgba(227,123,114,0.18);color:#F0A198;font-size:13.5px;font-weight:700;">Break Up</button>
+                <button onClick="{{ closeCluster }}" style="flex:1;padding:11px 0;border-radius:14px;background:rgba(120,120,128,0.24);border:0.5px solid rgba(255,255,255,0.1);color:#F2F2F4;font-size:13.5px;font-weight:700;">Done</button>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ corrOpen }}" hint-placeholder-val="{{ false }}">
+          <div onClick="{{ closeCorr }}" style="position:absolute;inset:0;z-index:70;background:rgba(0,0,0,0.5);animation:ftFadeIn 0.3s;"></div>
+          <div data-screen-label="Correlation Info" style="{{ corrSheetStyle }}">
+            <div style="width:36px;height:5px;border-radius:99px;background:rgba(255,255,255,0.22);margin:8px auto 0;flex:none;"></div>
+            <div data-hidescroll style="flex:1;overflow-y:auto;padding:14px 20px 30px;">
+              <div style="font-size:22px;font-weight:800;letter-spacing:-0.4px;">Correlation</div>
+              <div style="font-size:13px;color:rgba(235,235,245,0.5);margin-top:3px;line-height:1.45;">How closely two holdings move together — measured by Pearson’s r.</div>
+
+              <div style="margin-top:16px;border-radius:20px;background:rgba(255,255,255,0.045);border:0.5px solid rgba(255,255,255,0.07);padding:16px;">
+                <div style="position:relative;padding-top:22px;">
+                  <div style="{{ corrYouStyle }}">You · {{ corrYouVal }}</div>
+                  <div style="height:10px;border-radius:99px;background:linear-gradient(90deg,#D96A60,#A97F79 22%,#8E8E93 50%,#6FB28E 76%,#7BE0AE);"></div>
+                  <div style="display:flex;justify-content:space-between;margin-top:7px;font-size:10px;font-weight:600;color:rgba(235,235,245,0.4);font-variant-numeric:tabular-nums;">
+                    <span>−1</span><span>−0.7</span><span>−0.3</span><span>0</span><span>+0.3</span><span>+0.7</span><span>+1</span>
+                  </div>
+                </div>
+                <div style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:rgba(235,235,245,0.35);margin-top:12px;">r = cov(x, y) / (σx · σy)</div>
+              </div>
+
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin-top:12px;">
+                <div style="border-radius:18px;background:rgba(123,224,174,0.06);border:0.5px solid rgba(123,224,174,0.13);padding:12px 11px;">
+                  <svg width="100%" height="34" viewBox="0 0 64 36" fill="none" preserveAspectRatio="none"><path d="M2 24L14 17L26 21L38 11L50 15L62 5" stroke="#7BE0AE" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path><path d="M2 31L14 24L26 28L38 18L50 22L62 12" stroke="rgba(235,235,245,0.45)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                  <div style="font-size:13px;font-weight:800;margin-top:8px;font-variant-numeric:tabular-nums;">+1</div>
+                  <div style="font-size:11px;color:rgba(235,235,245,0.5);margin-top:2px;line-height:1.4;">Move together</div>
+                </div>
+                <div style="border-radius:18px;background:rgba(255,255,255,0.045);border:0.5px solid rgba(255,255,255,0.08);padding:12px 11px;">
+                  <svg width="100%" height="34" viewBox="0 0 64 36" fill="none" preserveAspectRatio="none"><path d="M2 26L14 20L26 23L38 14L50 17L62 9" stroke="rgba(235,235,245,0.8)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path><path d="M2 16L14 25L26 12L38 23L50 10L62 20" stroke="rgba(235,235,245,0.35)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                  <div style="font-size:13px;font-weight:800;margin-top:8px;font-variant-numeric:tabular-nums;">0</div>
+                  <div style="font-size:11px;color:rgba(235,235,245,0.5);margin-top:2px;line-height:1.4;">Independent</div>
+                </div>
+                <div style="border-radius:18px;background:rgba(227,123,114,0.05);border:0.5px solid rgba(227,123,114,0.13);padding:12px 11px;">
+                  <svg width="100%" height="34" viewBox="0 0 64 36" fill="none" preserveAspectRatio="none"><path d="M2 26L14 19L26 23L38 13L50 17L62 7" stroke="#7BE0AE" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path><path d="M2 10L14 17L26 13L38 23L50 19L62 29" stroke="#E37B72" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                  <div style="font-size:13px;font-weight:800;margin-top:8px;font-variant-numeric:tabular-nums;">−1</div>
+                  <div style="font-size:11px;color:rgba(235,235,245,0.5);margin-top:2px;line-height:1.4;">Move opposite</div>
+                </div>
+              </div>
+
+              <div style="margin-top:12px;border-radius:20px;background:rgba(255,255,255,0.045);border:0.5px solid rgba(255,255,255,0.07);padding:14px 16px;">
+                <div style="font-size:12px;font-weight:700;letter-spacing:0.7px;color:rgba(235,235,245,0.44);">WHY IT MATTERS</div>
+                <div style="font-size:13px;color:rgba(235,235,245,0.62);line-height:1.55;margin-top:7px;">Lower average correlation smooths portfolio swings. Bubbles that move together are natural candidates for a cluster.</div>
+              </div>
+
+              <button onClick="{{ closeCorr }}" style="margin-top:16px;width:100%;padding:13px 0;border-radius:16px;background:rgba(120,120,128,0.22);border:0.5px solid rgba(255,255,255,0.1);color:#F2F2F4;font-size:14.5px;font-weight:700;">Done</button>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ toastOn }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;top:66px;left:50%;transform:translateX(-50%);z-index:95;display:flex;align-items:center;gap:8px;padding:9px 16px;border-radius:999px;background:rgba(40,40,44,0.72);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:0.5px solid rgba(255,255,255,0.12);box-shadow:0 10px 30px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);animation:ftToastIn 0.32s cubic-bezier(0.2,0.9,0.3,1.1);white-space:nowrap;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M4.5 13l5 5L19.5 7" stroke="#7BE0AE" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            <span style="font-size:13px;font-weight:600;">{{ toastText }}</span>
+          </div>
+        </sc-if>
+
+      </div>
+    </x-import>
+
+    <div id="ft-widgets" data-screen-label="Widgets" style="width:344px;flex:none;display:flex;flex-direction:column;gap:20px;">
+      <div style="font-size:11px;font-weight:700;letter-spacing:1.1px;color:rgba(235,235,245,0.32);padding:0 2px;">HOME SCREEN WIDGETS</div>
+
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;padding:0 2px;"><span style="font-size:11.5px;font-weight:700;color:rgba(235,235,245,0.5);">Small</span><span style="font-size:10.5px;color:rgba(235,235,245,0.28);font-variant-numeric:tabular-nums;">Portfolio Value</span></div>
+        <div data-screen-label="Small widget" style="width:158px;height:158px;border-radius:28px;padding:15px;box-sizing:border-box;background:linear-gradient(160deg,#151517,#0B0B0D);border:0.5px solid rgba(255,255,255,0.08);box-shadow:0 16px 36px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06);display:flex;flex-direction:column;">
+          <div style="display:flex;align-items:center;gap:5px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><circle cx="10" cy="10" r="6.5" stroke="#7BE0AE" stroke-width="2.4"></circle><circle cx="17.5" cy="17.5" r="3.4" fill="#7BE0AE"></circle></svg>
+            <span style="font-size:10px;font-weight:700;color:rgba(235,235,245,0.45);letter-spacing:0.2px;">followtrend</span>
+          </div>
+          <div style="font-size:19px;font-weight:800;letter-spacing:-0.6px;font-variant-numeric:tabular-nums;margin-top:11px;">{{ wgValue }}</div>
+          <div style="{{ wgDayTinyStyle }}">{{ wgDayPct }} today</div>
+          <svg width="100%" height="36" viewBox="0 0 126 36" preserveAspectRatio="none" style="display:block;margin-top:auto;">
+            <defs><linearGradient id="wgG1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7BE0AE" stop-opacity="0.25"></stop><stop offset="1" stop-color="#7BE0AE" stop-opacity="0"></stop></linearGradient></defs>
+            <path d="{{ wgArea }}" fill="url(#wgG1)"></path>
+            <path d="{{ wgLine }}" fill="none" stroke="#7BE0AE" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+          </svg>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;padding:0 2px;"><span style="font-size:11.5px;font-weight:700;color:rgba(235,235,245,0.5);">Medium</span><span style="font-size:10.5px;color:rgba(235,235,245,0.28);">Portfolio · Daily Change · Top Performer</span></div>
+        <div data-screen-label="Medium widget" style="width:344px;height:158px;border-radius:28px;padding:15px 17px;box-sizing:border-box;background:linear-gradient(160deg,#151517,#0B0B0D);border:0.5px solid rgba(255,255,255,0.08);box-shadow:0 16px 36px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06);display:flex;gap:16px;">
+          <div style="flex:1;display:flex;flex-direction:column;min-width:0;">
+            <div style="display:flex;align-items:center;gap:5px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><circle cx="10" cy="10" r="6.5" stroke="#7BE0AE" stroke-width="2.4"></circle><circle cx="17.5" cy="17.5" r="3.4" fill="#7BE0AE"></circle></svg>
+              <span style="font-size:10px;font-weight:700;color:rgba(235,235,245,0.45);letter-spacing:0.2px;">PORTFOLIO</span>
+            </div>
+            <div style="font-size:23px;font-weight:800;letter-spacing:-0.7px;font-variant-numeric:tabular-nums;margin-top:9px;">{{ wgValue }}</div>
+            <div style="{{ wgDayStyle }}">{{ wgDay }}</div>
+            <div style="margin-top:auto;font-size:10px;font-weight:600;color:rgba(235,235,245,0.3);letter-spacing:0.3px;">MARKETS OPEN · 9:41 AM</div>
+          </div>
+          <div style="width:0.5px;background:rgba(255,255,255,0.09);flex:none;"></div>
+          <div style="width:118px;flex:none;display:flex;flex-direction:column;">
+            <div style="font-size:9.5px;font-weight:700;letter-spacing:0.8px;color:rgba(235,235,245,0.38);">TOP PERFORMER</div>
+            <div style="display:flex;align-items:center;gap:7px;margin-top:9px;">
+              <div style="{{ wgTopLogo }}">{{ wgTopInitial }}</div>
+              <div style="font-size:14px;font-weight:800;">{{ wgTopTicker }}</div>
+            </div>
+            <div style="font-size:15px;font-weight:800;color:#7BE0AE;font-variant-numeric:tabular-nums;margin-top:5px;">{{ wgTopPct }}</div>
+            <svg width="100%" height="24" viewBox="0 0 56 20" preserveAspectRatio="none" style="display:block;margin-top:auto;"><path d="{{ wgTopSpark }}" fill="none" stroke="#7BE0AE" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;padding:0 2px;"><span style="font-size:11.5px;font-weight:700;color:rgba(235,235,245,0.5);">Large</span><span style="font-size:10.5px;color:rgba(235,235,245,0.28);">Portfolio · Watchlist · Allocation · Quick Add</span></div>
+        <div data-screen-label="Large widget" style="width:344px;border-radius:28px;padding:17px;box-sizing:border-box;background:linear-gradient(160deg,#151517,#0B0B0D);border:0.5px solid rgba(255,255,255,0.08);box-shadow:0 16px 36px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06);">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;">
+            <div>
+              <div style="display:flex;align-items:center;gap:5px;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><circle cx="10" cy="10" r="6.5" stroke="#7BE0AE" stroke-width="2.4"></circle><circle cx="17.5" cy="17.5" r="3.4" fill="#7BE0AE"></circle></svg>
+                <span style="font-size:10px;font-weight:700;color:rgba(235,235,245,0.45);letter-spacing:0.2px;">PORTFOLIO</span>
+              </div>
+              <div style="font-size:24px;font-weight:800;letter-spacing:-0.7px;font-variant-numeric:tabular-nums;margin-top:7px;">{{ wgValue }}</div>
+            </div>
+            <div style="{{ wgDayPillStyle }}">{{ wgDayPct }}</div>
+          </div>
+
+          <div style="display:flex;height:9px;border-radius:99px;overflow:hidden;margin-top:14px;gap:2px;">
+            <sc-for list="{{ wgAllocSegs }}" as="ws" hint-placeholder-count="5">
+              <div style="{{ ws.style }}"></div>
+            </sc-for>
+          </div>
+          <div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap;">
+            <sc-for list="{{ wgAllocLegend }}" as="wl" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;gap:5px;">
+                <div style="{{ wl.dotStyle }}"></div>
+                <span style="font-size:10.5px;font-weight:600;color:rgba(235,235,245,0.55);">{{ wl.name }}</span>
+                <span style="font-size:10.5px;color:rgba(235,235,245,0.32);font-variant-numeric:tabular-nums;">{{ wl.pct }}</span>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="height:0.5px;background:rgba(255,255,255,0.08);margin:14px 0 12px;"></div>
+          <div style="font-size:9.5px;font-weight:700;letter-spacing:0.8px;color:rgba(235,235,245,0.38);">WATCHLIST</div>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:9px;">
+            <sc-for list="{{ wgWatch }}" as="ww" hint-placeholder-count="3">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="width:5px;height:5px;border-radius:99px;border:1px dashed rgba(235,235,245,0.4);"></div>
+                  <span style="font-size:12.5px;font-weight:700;color:rgba(235,235,245,0.78);">{{ ww.t }}</span>
+                  <span style="font-size:10.5px;color:rgba(235,235,245,0.32);">{{ ww.name }}</span>
+                </div>
+                <span style="{{ ww.chgStyle }}">{{ ww.chg }}</span>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-top:15px;">
+            <button onClick="{{ wgQuickAdd }}" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 0;border-radius:12px;background:rgba(123,224,174,0.12);border:0.5px solid rgba(123,224,174,0.2);color:#7BE0AE;font-size:12px;font-weight:700;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"></path></svg>
+              Quick Add
+            </button>
+            <button onClick="{{ wgQuickSearch }}" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 0;border-radius:12px;background:rgba(120,120,128,0.16);border:0.5px solid rgba(255,255,255,0.08);color:rgba(235,235,245,0.7);font-size:12px;font-weight:700;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2.4"></circle><path d="M16.8 16.8L21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"></path></svg>
+              Search
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1260,&quot;height&quot;:1020},&quot;privacyMode&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Behavior&quot;},&quot;reduceMotion&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Behavior&quot;},&quot;bubbleGlow&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0.55,&quot;min&quot;:0,&quot;max&quot;:1,&quot;step&quot;:0.05,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Bubbles&quot;}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.MINT = '#7BE0AE';
+    this.RED = '#E37B72';
+    this.ASSETS = {
+      AAPL:  { name: 'Apple Inc.', type: 'Stocks', sector: 'Technology', price: 247.12, prev: 244.90, hue: 215 },
+      NVDA:  { name: 'NVIDIA Corp.', type: 'Stocks', sector: 'Technology', price: 172.40, prev: 168.15, hue: 145 },
+      MSFT:  { name: 'Microsoft Corp.', type: 'Stocks', sector: 'Technology', price: 462.18, prev: 460.02, hue: 205 },
+      AMZN:  { name: 'Amazon.com Inc.', type: 'Stocks', sector: 'Consumer', price: 228.44, prev: 229.60, hue: 35 },
+      GOOGL: { name: 'Alphabet Inc.', type: 'Stocks', sector: 'Technology', price: 196.32, prev: 194.72, hue: 258 },
+      TSLA:  { name: 'Tesla, Inc.', type: 'Stocks', sector: 'Automotive', price: 262.85, prev: 268.10, hue: 350 },
+      COST:  { name: 'Costco Wholesale', type: 'Stocks', sector: 'Consumer', price: 1042.50, prev: 1036.20, hue: 0 },
+      V:     { name: 'Visa Inc.', type: 'Stocks', sector: 'Financials', price: 318.66, prev: 317.90, hue: 228 },
+      VTI:   { name: 'Vanguard Total Market ETF', type: 'ETFs', sector: 'Broad market', price: 302.14, prev: 300.88, hue: 170 },
+      BTC:   { name: 'Bitcoin', type: 'Crypto', sector: 'Crypto', price: 118240, prev: 116900, hue: 42 },
+      AMD:   { name: 'Advanced Micro Devices', type: 'Stocks', sector: 'Technology', price: 218.32, prev: 223.11, hue: 8 },
+      SPOT:  { name: 'Spotify Technology', type: 'Stocks', sector: 'Media', price: 612.40, prev: 606.90, hue: 140 },
+      PLTR:  { name: 'Palantir Technologies', type: 'Stocks', sector: 'Technology', price: 158.40, prev: 155.20, hue: 195 },
+      ETH:   { name: 'Ethereum', type: 'Crypto', sector: 'Crypto', price: 4386.20, prev: 4441.80, hue: 250 },
+      NFLX:  { name: 'Netflix, Inc.', type: 'Stocks', sector: 'Media', price: 1298.50, prev: 1287.20, hue: 4 },
+      DIS:   { name: 'The Walt Disney Company', type: 'Stocks', sector: 'Media', price: 124.18, prev: 123.40, hue: 212 },
+      UBER:  { name: 'Uber Technologies', type: 'Stocks', sector: 'Technology', price: 96.42, prev: 95.88, hue: 120 },
+      SHOP:  { name: 'Shopify Inc.', type: 'Stocks', sector: 'Technology', price: 132.76, prev: 130.90, hue: 95 },
+      VOO:   { name: 'Vanguard S&P 500 ETF', type: 'ETFs', sector: 'Large cap', price: 562.40, prev: 559.90, hue: 165 },
+      QQQ:   { name: 'Invesco QQQ Trust', type: 'ETFs', sector: 'Tech-heavy', price: 602.18, prev: 598.40, hue: 190 },
+      SCHD:  { name: 'Schwab US Dividend ETF', type: 'ETFs', sector: 'Dividend', price: 29.84, prev: 29.76, hue: 155 },
+      VXUS:  { name: 'Vanguard Intl Stock ETF', type: 'ETFs', sector: 'International', price: 71.22, prev: 71.05, hue: 180 },
+      SOL:   { name: 'Solana', type: 'Crypto', sector: 'Crypto', price: 248.60, prev: 239.80, hue: 265 },
+      ADA:   { name: 'Cardano', type: 'Crypto', sector: 'Crypto', price: 1.24, prev: 1.21, hue: 230 }
+    };
+    this.state = {
+      tab: 'portfolio',
+      range: '1M',
+      scrub: null,
+      searchVal: '',
+      sortBy: 'Performance',
+      sortOpen: false,
+      swipeId: null,
+      positions: [
+        { t: 'AAPL', sh: 42, avg: 168.30 },
+        { t: 'NVDA', sh: 85, avg: 96.20 },
+        { t: 'MSFT', sh: 24, avg: 315.75 },
+        { t: 'AMZN', sh: 38, avg: 172.10 },
+        { t: 'GOOGL', sh: 30, avg: 138.45 },
+        { t: 'TSLA', sh: 18, avg: 291.40 },
+        { t: 'COST', sh: 4, avg: 812.00 },
+        { t: 'V', sh: 15, avg: 246.20 },
+        { t: 'VTI', sh: 40, avg: 241.90 },
+        { t: 'BTC', sh: 0.18, avg: 67400 }
+      ],
+      watchlist: ['AMD', 'SPOT', 'PLTR', 'ETH'],
+      clusters: [{ id: 'c1', name: 'Core Tech', members: ['MSFT', 'GOOGL', 'AMZN'] }],
+      popped: [], popping: null, selectMode: false, selected: [], clusterOpen: null, infoBubble: null,
+      addOpen: false, addTab: 'Stocks', addSearch: '', sheetClosing: false,
+      detail: null, detailMode: 'view', formShares: '', formPrice: '',
+      corrOpen: false,
+      settings: { language: 'English', currency: 'USD', theme: 'Dark', notifications: true, faceId: true, privacy: false },
+      privacyOverride: null,
+      toast: null
+    };
+    this.rowEls = {};
+    this.rowDrag = null;
+    this.seriesCache = {};
+    this.sparkCache = {};
+    this.bubbleEls = {};
+    this.sim = { nodes: {}, raf: 0, t: 0, drag: null, hold: null };
+  }
+
+  // ── utils ───────────────────────────────────────────
+  seeded(str) {
+    let h = 1779033703 ^ str.length;
+    for (let i = 0; i < str.length; i++) { h = Math.imul(h ^ str.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19); }
+    return () => {
+      h = Math.imul(h ^ (h >>> 16), 2246822507);
+      h = Math.imul(h ^ (h >>> 13), 3266489909);
+      return ((h ^= h >>> 16) >>> 0) / 4294967296;
+    };
+  }
+  privacy() { const o = this.state.privacyOverride; return o === null ? (this.props.privacyMode ?? this.state.settings.privacy) : o; }
+  money(v, dp) {
+    if (this.privacy()) return '$•••••';
+    if (dp === undefined) dp = 2;
+    return '$' + Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp });
+  }
+  signedMoney(v, dp) { return (v >= 0 ? '+' : '−') + this.money(v, dp).replace('$', '$'); }
+  pctStr(v) { return (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(2) + '%'; }
+  posVal(p) { return p.sh * this.ASSETS[p.t].price; }
+  totals() {
+    let val = 0, day = 0, cost = 0;
+    for (const p of this.state.positions) {
+      const a = this.ASSETS[p.t];
+      val += p.sh * a.price; day += p.sh * (a.price - a.prev); cost += p.sh * p.avg;
+    }
+    return { val, day, dayPct: day / (val - day) * 100, cost, pl: val - cost, plPct: (val - cost) / cost * 100 };
+  }
+  toast(msg) {
+    clearTimeout(this._toastT);
+    this.setState({ toast: msg });
+    this._toastT = setTimeout(() => this.setState({ toast: null }), 2100);
+  }
+  logoStyle(t, size) {
+    const a = this.ASSETS[t];
+    return {
+      width: size, height: size, flex: 'none', borderRadius: size * 0.3,
+      background: 'linear-gradient(160deg, hsl(' + a.hue + ',24%,27%), hsl(' + a.hue + ',30%,15%))',
+      border: '0.5px solid rgba(255,255,255,0.1)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: size * 0.4, fontWeight: 700, color: 'hsl(' + a.hue + ',42%,80%)', letterSpacing: '-0.3px'
+    };
+  }
+
+  // ── chart series ────────────────────────────────────
+  series(range) {
+    if (this.seriesCache[range]) return this.seriesCache[range];
+    const spec = { '1H': [60, 0.0021, 0.0007], '1D': [78, 0.0099, 0.0016], '1W': [56, 0.018, 0.006], '1M': [60, 0.042, 0.011], '3M': [66, 0.096, 0.016], '1Y': [72, 0.234, 0.024], 'MAX': [80, 0.58, 0.035] }[range];
+    const n = spec[0], totRet = spec[1], vol = spec[2];
+    const end = this.totals().val;
+    const rnd = this.seeded('ft-' + range);
+    const raw = [1];
+    for (let i = 1; i < n; i++) raw.push(raw[i - 1] * (1 + (rnd() - 0.5) * vol * 2));
+    const start = end / (1 + totRet);
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const lin = raw[0] + (raw[n - 1] - raw[0]) * (i / (n - 1));
+      const t = start * Math.pow(end / start, i / (n - 1));
+      out.push(t * (raw[i] / lin));
+    }
+    out[n - 1] = end;
+    this.seriesCache[range] = out;
+    return out;
+  }
+  smoothPath(pts) {
+    if (pts.length < 3) return '';
+    let d = 'M' + pts[0][0].toFixed(1) + ' ' + pts[0][1].toFixed(1);
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(pts.length - 1, i + 2)];
+      const c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
+      const c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
+      d += 'C' + c1x.toFixed(1) + ' ' + c1y.toFixed(1) + ' ' + c2x.toFixed(1) + ' ' + c2y.toFixed(1) + ' ' + p2[0].toFixed(1) + ' ' + p2[1].toFixed(1);
+    }
+    return d;
+  }
+  chartGeom() {
+    const s = this.series(this.state.range);
+    const W = 374, H = 172, top = 14, bot = 14;
+    let min = Infinity, max = -Infinity;
+    for (const v of s) { if (v < min) min = v; if (v > max) max = v; }
+    const span = (max - min) || 1;
+    const pts = s.map((v, i) => [i / (s.length - 1) * W, top + (1 - (v - min) / span) * (H - top - bot)]);
+    return { s, pts, W, H };
+  }
+  spark(t) {
+    if (this.sparkCache[t]) return this.sparkCache[t];
+    const a = this.ASSETS[t];
+    const rnd = this.seeded('sp-' + t);
+    const n = 22, drift = (a.price - a.prev) / a.prev;
+    const vals = [1];
+    for (let i = 1; i < n; i++) vals.push(vals[i - 1] * (1 + (rnd() - 0.5) * 0.012 + drift / n));
+    let min = Infinity, max = -Infinity;
+    for (const v of vals) { if (v < min) min = v; if (v > max) max = v; }
+    const span = (max - min) || 1;
+    const pts = vals.map((v, i) => [i / (n - 1) * 56, 2.5 + (1 - (v - min) / span) * 15]);
+    const d = this.smoothPath(pts);
+    this.sparkCache[t] = d;
+    return d;
+  }
+
+  // ── navigation ──────────────────────────────────────
+  go(tab) {
+    this.setState({ tab, sortOpen: false, infoBubble: null, selectMode: false, selected: [], swipeId: null });
+  }
+  jump(spec) {
+    const base = { addOpen: false, detail: null, corrOpen: false, clusterOpen: null, selectMode: false, selected: [], infoBubble: null, sortOpen: false, sheetClosing: false, detailMode: 'view' };
+    this.setState(Object.assign(base, spec));
+  }
+  openDetail(t, mode) {
+    const pos = this.state.positions.find(p => p.t === t);
+    this.setState({
+      detail: t, detailMode: mode || 'view', sheetClosing: false,
+      formShares: pos ? String(pos.sh) : '', formPrice: pos ? String(pos.avg) : String(this.ASSETS[t].price)
+    });
+  }
+
+  // ── row swipe ───────────────────────────────────────
+  rowHandlers(id) {
+    return {
+      setEl: (el) => { this.rowEls[id] = el; },
+      onDown: (e) => {
+        this.rowDrag = { id, x0: e.clientX, y0: e.clientY, t0: Date.now(), dx: 0, moved: false, base: this.state.swipeId === id ? -148 : 0 };
+        e.currentTarget.setPointerCapture(e.pointerId);
+      },
+      onMove: (e) => {
+        const d = this.rowDrag;
+        if (!d || d.id !== id) return;
+        const dx = e.clientX - d.x0;
+        if (!d.moved && Math.abs(dx) < 7) return;
+        d.moved = true;
+        d.dx = Math.max(-176, Math.min(10, d.base + dx));
+        const el = this.rowEls[id];
+        if (el) { el.style.transition = 'none'; el.style.transform = 'translateX(' + d.dx + 'px)'; }
+      },
+      onUp: (e) => {
+        const d = this.rowDrag;
+        if (!d || d.id !== id) return;
+        this.rowDrag = null;
+        const el = this.rowEls[id];
+        if (el) el.style.transition = '';
+        if (!d.moved) {
+          if (Date.now() - d.t0 < 450) {
+            if (this.state.swipeId) { this.setState({ swipeId: null }); if (el) el.style.transform = ''; }
+            else this.openDetail(id, 'view');
+          }
+          return;
+        }
+        const open = d.dx < -70;
+        if (el) el.style.transform = 'translateX(' + (open ? -148 : 0) + 'px)';
+        this.setState({ swipeId: open ? id : (this.state.swipeId === id ? null : this.state.swipeId) });
+      },
+      onEdit: () => { this.setState({ swipeId: null }); this.openDetail(id, 'edit'); },
+      onDelete: () => {
+        this.setState({ positions: this.state.positions.filter(p => p.t !== id), swipeId: null });
+        this.toast('Removed ' + id + ' from portfolio');
+      }
+    };
+  }
+
+  // ── core render values ──────────────────────────────
+  coreVals() {
+    const st = this.state;
+    const T = this.totals();
+    const MINT = this.MINT, RED = this.RED;
+    const priv = this.privacy();
+
+    // chart
+    const g = this.chartGeom();
+    const scrubI = st.scrub === null ? null : Math.max(0, Math.min(g.s.length - 1, st.scrub));
+    const dispVal = scrubI === null ? g.s[g.s.length - 1] : g.s[scrubI];
+    const refVal = g.s[0];
+    const delta = dispVal - refVal, deltaPct = delta / refVal * 100;
+    const up = delta >= 0;
+    const rangeUp = g.s[g.s.length - 1] >= g.s[0];
+    const lineColor = rangeUp ? MINT : RED;
+    const pillBg = up ? 'rgba(123,224,174,0.13)' : 'rgba(227,123,114,0.13)';
+    const pillCol = up ? MINT : '#EE9B93';
+    const linePath = this.smoothPath(g.pts);
+    const areaPath = linePath + 'L374 172L0 172Z';
+    const baseY = g.pts[0][1];
+
+    const rangeLabels = { '1H': 'Past Hour', '1D': 'Today', '1W': 'Past Week', '1M': 'Past Month', '3M': 'Past 3 Months', '1Y': 'Past Year', 'MAX': 'All Time' };
+    const rangeKeys = ['1H', '1D', '1W', '1M', '3M', '1Y', 'MAX'];
+    const rIdx = rangeKeys.indexOf(st.range);
+
+    // allocation
+    const sorted = st.positions.slice().sort((a, b) => this.posVal(b) - this.posVal(a));
+    const top4 = sorted.slice(0, 4);
+    const rest = sorted.slice(4).reduce((s, p) => s + this.posVal(p), 0);
+    const segs = top4.map(p => ({ name: p.t, v: this.posVal(p) }));
+    if (rest > 0) segs.push({ name: 'Other', v: rest });
+    const segColors = [MINT, 'rgba(123,224,174,0.55)', 'rgba(235,235,245,0.66)', 'rgba(235,235,245,0.34)', 'rgba(235,235,245,0.16)'];
+    let acc = 0; const stops = [];
+    segs.forEach((sg, i) => {
+      const from = acc / T.val * 360; acc += sg.v;
+      const to = acc / T.val * 360;
+      stops.push(segColors[i] + ' ' + from.toFixed(1) + 'deg ' + to.toFixed(1) + 'deg');
+    });
+
+    // rows
+    const q = st.searchVal.trim().toLowerCase();
+    let rows = st.positions.filter(p => !q || p.t.toLowerCase().includes(q) || this.ASSETS[p.t].name.toLowerCase().includes(q));
+    const sorters = {
+      'Performance': (a, b) => ((this.ASSETS[b.t].price - b.avg) / b.avg) - ((this.ASSETS[a.t].price - a.avg) / a.avg),
+      'Name': (a, b) => a.t.localeCompare(b.t),
+      'Allocation': (a, b) => this.posVal(b) - this.posVal(a),
+      'Newest': (a, b) => st.positions.indexOf(b) - st.positions.indexOf(a),
+      'Oldest': (a, b) => st.positions.indexOf(a) - st.positions.indexOf(b)
+    };
+    rows = rows.slice().sort(sorters[st.sortBy]);
+
+    const rowVals = rows.map((p, i) => {
+      const a = this.ASSETS[p.t];
+      const pl = (a.price - p.avg) * p.sh, plPct = (a.price - p.avg) / p.avg * 100;
+      const dayUp = a.price >= a.prev;
+      const h = this.rowHandlers(p.t);
+      return Object.assign({
+        ticker: p.t, name: a.name, initial: p.t.slice(0, p.t.length > 3 ? 2 : 1),
+        sub: (p.sh < 1 ? p.sh : p.sh.toLocaleString()) + ' sh · avg ' + this.money(p.avg, p.avg > 999 ? 0 : 2),
+        spark: this.spark(p.t), sparkColor: dayUp ? MINT : RED,
+        price: this.money(a.price, a.price > 9999 ? 0 : 2),
+        pl: this.signedMoney(pl, 0) + ' (' + this.pctStr(plPct) + ')',
+        plStyle: { fontSize: 11.5, fontWeight: 600, marginTop: 3, fontVariantNumeric: 'tabular-nums', color: pl >= 0 ? MINT : '#EE9B93' },
+        logoStyle: this.logoStyle(p.t, 40),
+        frontStyle: {
+          position: 'relative', display: 'flex', alignItems: 'center', gap: 11,
+          padding: '11px 16px', background: '#101013', touchAction: 'pan-y', cursor: 'pointer',
+          borderBottom: i < rows.length - 1 ? '0.5px solid rgba(255,255,255,0.06)' : 'none',
+          transform: 'translateX(' + (st.swipeId === p.t ? -148 : 0) + 'px)',
+          transition: 'transform 0.32s cubic-bezier(0.25,0.9,0.3,1)'
+        }
+      }, h);
+    });
+
+    const mkTab = (key) => ({
+      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+      padding: '8px 15px 7px', borderRadius: 999, minWidth: 64,
+      color: st.tab === key ? MINT : 'rgba(235,235,245,0.5)',
+      background: st.tab === key ? 'rgba(255,255,255,0.09)' : 'transparent',
+      boxShadow: st.tab === key ? 'inset 0 1px 0 rgba(255,255,255,0.09)' : 'none',
+      transition: 'color 0.25s, background 0.25s'
+    });
+
+    return {
+      isPortfolio: st.tab === 'portfolio', isBubbles: st.tab === 'bubbles',
+      isWatchlist: st.tab === 'watchlist', isSettings: st.tab === 'settings',
+      goPortfolio: () => this.go('portfolio'), goBubbles: () => this.go('bubbles'),
+      goWatchlist: () => this.go('watchlist'), goSettings: () => this.go('settings'),
+      tabPortfolioStyle: mkTab('portfolio'), tabBubblesStyle: mkTab('bubbles'),
+      tabWatchStyle: mkTab('watchlist'), tabSettingsStyle: mkTab('settings'),
+      todayLabel: 'TUESDAY, JUL 8',
+      openAdd: () => this.setState({ addOpen: true, addSearch: '', addTab: 'Stocks', sheetClosing: false }),
+
+      heroValue: priv ? '$•••••••' : this.money(dispVal),
+      heroDeltaText: this.signedMoney(delta, 2) + ' (' + this.pctStr(deltaPct) + ')',
+      heroPillStyle: {
+        fontSize: 13, fontWeight: 650, fontVariantNumeric: 'tabular-nums',
+        color: pillCol, background: pillBg, border: '0.5px solid ' + (up ? 'rgba(123,224,174,0.16)' : 'rgba(227,123,114,0.16)'),
+        padding: '3.5px 10px', borderRadius: 999
+      },
+      rangeLabel: rangeLabels[st.range],
+      linePath, areaPath, lineColor, baseY,
+      areaFill: rangeUp ? 'url(#ftFillM)' : 'url(#ftFillR)',
+      scrubOpacity: scrubI === null ? 0 : 1,
+      scrubX: scrubI === null ? 0 : g.pts[scrubI][0],
+      scrubY: scrubI === null ? 0 : g.pts[scrubI][1],
+      chartMove: (e) => {
+        const r = e.currentTarget.getBoundingClientRect();
+        const i = Math.round((e.clientX - r.left) / r.width * (g.s.length - 1));
+        if (i !== st.scrub) this.setState({ scrub: i });
+      },
+      chartLeave: () => this.setState({ scrub: null }),
+
+      ranges: rangeKeys.map((k) => ({
+        label: k,
+        go: () => this.setState({ range: k, scrub: null }),
+        style: {
+          flex: 1, position: 'relative', zIndex: 1, padding: '6px 0', fontSize: 12, fontWeight: 650,
+          letterSpacing: '0.2px', color: st.range === k ? '#FFFFFF' : 'rgba(235,235,245,0.48)',
+          transition: 'color 0.25s', borderRadius: 999
+        }
+      })),
+      thumbStyle: {
+        position: 'absolute', top: 3, bottom: 3,
+        left: 'calc(3px + ' + rIdx + ' * (100% - 6px) / 7)', width: 'calc((100% - 6px) / 7)',
+        borderRadius: 999, background: 'rgba(255,255,255,0.14)',
+        border: '0.5px solid rgba(255,255,255,0.1)', boxSizing: 'border-box',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.14), 0 2px 6px rgba(0,0,0,0.3)',
+        transition: 'left 0.32s cubic-bezier(0.3,0.9,0.3,1)'
+      },
+
+      allocConic: {
+        width: 92, height: 92, flex: 'none', borderRadius: '50%',
+        background: 'conic-gradient(from -90deg, ' + stops.join(', ') + ')',
+        WebkitMask: 'radial-gradient(closest-side, transparent 61%, #000 62%)',
+        mask: 'radial-gradient(closest-side, transparent 61%, #000 62%)'
+      },
+      allocLegend: segs.slice(0, 4).map((sg, i) => ({
+        name: sg.name === 'Other' ? 'Other' : sg.name,
+        pct: (sg.v / T.val * 100).toFixed(1) + '%',
+        dotStyle: { width: 8, height: 8, borderRadius: 99, background: segColors[i], flex: 'none' }
+      })),
+      rebTitle: 'Technology is 8.2% overweight',
+      rebBody: 'Trimming NVDA toward VTI would bring you back to your 35% target.',
+      divScore: '68',
+      divGrade: 'Good',
+      divSub: 'Concentrated in mega-cap tech. Adding intl. exposure would help.',
+      divConic: {
+        width: 84, height: 84, flex: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'radial-gradient(closest-side, #17181A 71%, transparent 72% 100%), conic-gradient(from -90deg, ' + MINT + ' 0deg 245deg, rgba(255,255,255,0.09) 245deg 360deg)'
+      },
+      riskRows: [
+        { k: 'Beta', v: '1.12', barStyle: { position: 'absolute', inset: 0, width: '56%', borderRadius: 99, background: MINT } },
+        { k: 'Volatility 30D', v: '14.8%', barStyle: { position: 'absolute', inset: 0, width: '42%', borderRadius: 99, background: 'rgba(235,235,245,0.55)' } },
+        { k: 'Max drawdown', v: '−9.4%', barStyle: { position: 'absolute', inset: 0, width: '27%', borderRadius: 99, background: 'rgba(227,123,114,0.75)' } }
+      ],
+
+      searchVal: st.searchVal,
+      onSearch: (e) => this.setState({ searchVal: e.target.value }),
+      posCount: String(st.positions.length),
+      sortLabel: st.sortBy,
+      toggleSortMenu: () => this.setState({ sortOpen: !st.sortOpen }),
+      closeSortMenu: () => this.setState({ sortOpen: false }),
+      sortOpen: st.sortOpen,
+      sortItems: ['Performance', 'Name', 'Allocation', 'Newest', 'Oldest'].map(k => ({
+        label: k,
+        pick: () => this.setState({ sortBy: k, sortOpen: false }),
+        checkOpacity: st.sortBy === k ? 1 : 0
+      })),
+      rows: rowVals,
+      noResults: rowVals.length === 0,
+
+      toastOn: !!st.toast,
+      toastText: st.toast || ''
+    };
+  }
+
+  // ── bubble physics ─────────────────────────────────
+  bubbleItems() {
+    const st = this.state;
+    const T = this.totals();
+    const popping = st.popping || [];
+    const inCluster = {};
+    st.clusters.forEach(c => c.members.forEach(m => { inCluster[m] = c.id; }));
+    const items = [];
+    for (const p of st.positions) {
+      if (inCluster[p.t]) continue;
+      if (st.popped.includes(p.t)) continue;
+      const v = this.posVal(p);
+      const a = this.ASSETS[p.t];
+      items.push({
+        id: p.t, kind: 'asset', label: p.t, name: a.name, value: v,
+        plPct: (a.price - p.avg) / p.avg * 100,
+        r: Math.round(15 + Math.sqrt(v / T.val) * 76),
+        popping: popping.includes(p.t)
+      });
+    }
+    for (const c of st.clusters) {
+      let v = 0, cost = 0, rr = 0;
+      for (const m of c.members) {
+        const p = st.positions.find(q => q.t === m);
+        if (!p) continue;
+        const pv = this.posVal(p);
+        v += pv; cost += p.sh * p.avg;
+        const r0 = 15 + Math.sqrt(pv / T.val) * 76;
+        rr += r0 * r0;
+      }
+      if (!v) continue;
+      items.push({
+        id: c.id, kind: 'cluster', label: c.name, name: c.members.join(' · '), count: c.members.length,
+        value: v, plPct: (v - cost) / cost * 100,
+        r: Math.min(78, Math.round(Math.sqrt(rr) * 1.05)),
+        popping: popping.includes(c.id)
+      });
+    }
+    for (const t of st.watchlist) items.push({ id: 'g-' + t, kind: 'ghost', label: t, r: 21 });
+    return items;
+  }
+  spiralPos(i) {
+    const ang = i * 2.39996, rad = 30 + 36 * Math.sqrt(i);
+    return { x: 201 + Math.cos(ang) * rad, y: 250 + Math.sin(ang) * rad * 0.8 };
+  }
+  syncSim() {
+    const items = this.bubbleItems();
+    this.simItems = items;
+    const nodes = this.sim.nodes;
+    const seen = {};
+    items.forEach((it, i) => {
+      seen[it.id] = 1;
+      let n = nodes[it.id];
+      if (!n) {
+        const sp = (this.spawnAt && this.spawnAt[it.id]) || this.spiralPos(i);
+        n = nodes[it.id] = { x: sp.x, y: sp.y, vx: 0, vy: 0, r: it.r, phase: Math.random() * 6.283, delay: this._booted ? 0 : Math.min(430, i * 42) };
+        if (this.spawnAt) delete this.spawnAt[it.id];
+      }
+      n.r = it.r;
+    });
+    for (const k of Object.keys(nodes)) if (!seen[k]) { delete nodes[k]; delete this.bubbleEls[k]; }
+    this._booted = true;
+  }
+  startLoop() {
+    const step = (ts) => {
+      if (!this._mounted) return;
+      this.sim.raf = requestAnimationFrame(step);
+      if (this.state.tab !== 'bubbles') return;
+      this.physStep(ts);
+    };
+    this.sim.raf = requestAnimationFrame(step);
+  }
+  physStep(ts) {
+    const F = this.fieldEl;
+    if (!F) return;
+    const W = F.offsetWidth, H = F.offsetHeight;
+    if (!W || !H) return;
+    const rm = !!this.props.reduceMotion;
+    const drag = this.sim.drag;
+    const arr = [];
+    for (const it of (this.simItems || [])) {
+      const n = this.sim.nodes[it.id];
+      if (n) { n.ghost = it.kind === 'ghost'; arr.push(n); n.id = it.id; }
+    }
+    for (const n of arr) {
+      if (drag && drag.id === n.id) {
+        n.vx += (drag.px - n.x) * 0.3; n.vy += (drag.py - n.y) * 0.3;
+        n.vx *= 0.5; n.vy *= 0.5;
+      } else {
+        if (!rm) {
+          n.vx += Math.sin(ts * 0.00042 + n.phase) * 0.012;
+          n.vy += Math.cos(ts * 0.00035 + n.phase * 1.7) * 0.012;
+        }
+        n.vx += (W * 0.5 - n.x) * 0.00014;
+        n.vy += (H * 0.45 - n.y) * 0.00014;
+      }
+    }
+    for (let i = 0; i < arr.length; i++) {
+      for (let j = i + 1; j < arr.length; j++) {
+        const a = arr[i], b = arr[j];
+        let dx = b.x - a.x, dy = b.y - a.y;
+        let d = Math.hypot(dx, dy);
+        if (d < 0.01) { d = 0.01; dx = 0.01; }
+        const min = a.r + b.r + 5;
+        if (d < min) {
+          const ux = dx / d, uy = dy / d, ov = min - d;
+          const ma = a.r * a.r, mb = b.r * b.r, tot = ma + mb;
+          const ka = mb / tot, kb = ma / tot;
+          a.x -= ux * ov * 0.32 * ka; a.y -= uy * ov * 0.32 * ka;
+          b.x += ux * ov * 0.32 * kb; b.y += uy * ov * 0.32 * kb;
+          a.vx -= ux * ov * 0.05 * ka; a.vy -= uy * ov * 0.05 * ka;
+          b.vx += ux * ov * 0.05 * kb; b.vy += uy * ov * 0.05 * kb;
+        }
+      }
+    }
+    for (const n of arr) {
+      const padL = n.r + 8, padR = W - n.r - 8, padT = n.r + 6, padB = H - n.r - 10;
+      if (n.x < padL) n.vx += (padL - n.x) * 0.02;
+      if (n.x > padR) n.vx -= (n.x - padR) * 0.02;
+      if (n.y < padT) n.vy += (padT - n.y) * 0.02;
+      if (n.y > padB) n.vy -= (n.y - padB) * 0.02;
+      const damp = rm ? 0.86 : 0.945;
+      n.vx *= damp; n.vy *= damp;
+      const sp = Math.hypot(n.vx, n.vy);
+      if (sp > 7) { n.vx *= 7 / sp; n.vy *= 7 / sp; }
+      n.x += n.vx; n.y += n.vy;
+      n.x = Math.max(n.r * 0.5, Math.min(W - n.r * 0.5, n.x));
+      n.y = Math.max(n.r * 0.5, Math.min(H - n.r * 0.5, n.y));
+      const el = this.bubbleEls[n.id];
+      if (el) {
+        const s = drag && drag.id === n.id ? ' scale(1.06)' : '';
+        el.style.transform = 'translate3d(' + (n.x - n.r).toFixed(2) + 'px,' + (n.y - n.r).toFixed(2) + 'px,0)' + s;
+      }
+    }
+  }
+  toggleSelect(id) {
+    const sel = this.state.selected.slice();
+    const i = sel.indexOf(id);
+    if (i >= 0) sel.splice(i, 1); else sel.push(id);
+    this.setState({ selected: sel });
+  }
+  createCluster() {
+    const st = this.state;
+    const sel = st.selected;
+    const members = [];
+    let clusters = st.clusters.filter(c => {
+      if (sel.includes(c.id)) { members.push(...c.members); return false; }
+      return true;
+    });
+    for (const id of sel) if (st.positions.find(p => p.t === id) && !members.includes(id)) members.push(id);
+    if (members.length < 2) return;
+    let sx = 0, sy = 0, cnt = 0;
+    for (const id of sel) { const n = this.sim.nodes[id]; if (n) { sx += n.x; sy += n.y; cnt++; } }
+    const cid = 'c' + Date.now();
+    this.spawnAt = this.spawnAt || {};
+    if (cnt) this.spawnAt[cid] = { x: sx / cnt, y: sy / cnt };
+    clusters = clusters.concat([{ id: cid, name: members[0] + ' +' + (members.length - 1), members }]);
+    this.setState({ clusters, selectMode: false, selected: [], infoBubble: null });
+    this.toast('Cluster created · ' + members.length + ' holdings');
+  }
+  popBubbles(ids) {
+    const st = this.state;
+    const real = ids.filter(id => st.positions.find(p => p.t === id) || st.clusters.find(c => c.id === id));
+    if (!real.length) { this.setState({ selectMode: false, selected: [] }); return; }
+    this.setState({ popping: real, selectMode: false, selected: [], infoBubble: null });
+    setTimeout(() => {
+      if (!this._mounted) return;
+      const s2 = this.state;
+      let popped = s2.popped.slice(), clusters = s2.clusters.slice();
+      for (const id of real) {
+        const cl = clusters.find(c => c.id === id);
+        if (cl) { popped.push(...cl.members); clusters = clusters.filter(c => c !== cl); }
+        else if (!popped.includes(id)) popped.push(id);
+      }
+      this.setState({ popping: null, popped, clusters });
+      this.toast(real.length > 1 ? 'Popped ' + real.length + ' bubbles' : 'Popped ' + real[0]);
+    }, 320);
+  }
+  restoreBubble() {
+    const popped = this.state.popped.slice();
+    if (!popped.length) { this.toast('No popped bubbles'); return; }
+    const id = popped.pop();
+    const F = this.fieldEl;
+    const W = F ? F.offsetWidth : 402, H = F ? F.offsetHeight : 520;
+    this.spawnAt = this.spawnAt || {};
+    this.spawnAt[id] = { x: W / 2 + (Math.random() - 0.5) * 90, y: H * 0.42 + (Math.random() - 0.5) * 70 };
+    this.setState({ popped });
+    this.toast('Restored ' + id);
+  }
+  bubbleFace(it) {
+    const glow = (this.props.bubbleGlow === undefined || this.props.bubbleGlow === null) ? 0.55 : this.props.bubbleGlow;
+    const sel = this.state.selected.includes(it.id);
+    const n = this.sim.nodes[it.id];
+    const base = {
+      position: 'absolute', inset: 0, borderRadius: '50%', boxSizing: 'border-box',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      userSelect: 'none', WebkitUserSelect: 'none', textAlign: 'center', overflow: 'hidden',
+      backdropFilter: 'blur(9px)', WebkitBackdropFilter: 'blur(9px)',
+      animation: it.popping ? 'ftPopOut 0.32s ease-in forwards' : 'ftPopIn 0.55s cubic-bezier(0.34,1.45,0.45,1) both',
+      animationDelay: (it.popping ? 0 : ((n && n.delay) || 0)) + 'ms'
+    };
+    if (it.kind === 'ghost') {
+      return Object.assign(base, {
+        background: 'rgba(255,255,255,0.025)', border: '1.5px dashed rgba(235,235,245,0.22)',
+        color: 'rgba(235,235,245,0.55)'
+      });
+    }
+    const p = it.plPct;
+    let bg, border, glowCss, col;
+    if (p > 1.5) {
+      const a = Math.min(0.3, 0.13 + Math.abs(p) / 240);
+      bg = 'radial-gradient(circle at 32% 28%, rgba(123,224,174,' + (a + 0.08).toFixed(2) + '), rgba(123,224,174,' + (a * 0.42).toFixed(2) + ') 52%, rgba(123,224,174,0.04) 100%)';
+      border = '1px solid rgba(123,224,174,0.26)';
+      glowCss = '0 0 ' + Math.round(it.r * 0.8) + 'px rgba(94,214,158,' + (0.4 * glow).toFixed(2) + ')';
+      col = '#DCF8EA';
+    } else if (p < -1.5) {
+      const a = Math.min(0.28, 0.12 + Math.abs(p) / 240);
+      bg = 'radial-gradient(circle at 32% 28%, rgba(227,123,114,' + (a + 0.07).toFixed(2) + '), rgba(227,123,114,' + (a * 0.42).toFixed(2) + ') 52%, rgba(227,123,114,0.04) 100%)';
+      border = '1px solid rgba(227,123,114,0.24)';
+      glowCss = '0 0 ' + Math.round(it.r * 0.7) + 'px rgba(217,106,96,' + (0.32 * glow).toFixed(2) + ')';
+      col = '#F8DFDB';
+    } else {
+      bg = 'radial-gradient(circle at 32% 28%, rgba(255,255,255,0.13), rgba(255,255,255,0.05) 55%, rgba(255,255,255,0.02) 100%)';
+      border = '1px solid rgba(255,255,255,0.15)';
+      glowCss = '0 0 ' + Math.round(it.r * 0.5) + 'px rgba(255,255,255,' + (0.12 * glow).toFixed(2) + ')';
+      col = '#ECECEE';
+    }
+    const ring = sel ? ', 0 0 0 3px rgba(123,224,174,0.5)' : '';
+    return Object.assign(base, {
+      background: bg, border: sel ? '1px solid rgba(123,224,174,0.7)' : border, color: col,
+      boxShadow: glowCss + ', inset 0 1px 10px rgba(255,255,255,0.06)' + ring
+    });
+  }
+  bubbleHandlers(it) {
+    return {
+      setEl: (el) => {
+        this.bubbleEls[it.id] = el;
+        const n = this.sim.nodes[it.id];
+        if (el && n) el.style.transform = 'translate3d(' + (n.x - n.r) + 'px,' + (n.y - n.r) + 'px,0)';
+      },
+      down: (e) => {
+        e.stopPropagation();
+        if (this.state.infoBubble) this.setState({ infoBubble: null });
+        const F = this.fieldEl;
+        if (!F) return;
+        e.currentTarget.setPointerCapture(e.pointerId);
+        const rect = F.getBoundingClientRect();
+        const rec = { id: it.id, x0: e.clientX, y0: e.clientY, t0: Date.now(), moved: false, rect, sx: F.offsetWidth / rect.width };
+        this.sim.pointer = rec;
+        clearTimeout(this.sim.hold);
+        if (it.kind !== 'ghost' && !this.state.selectMode) {
+          this.sim.hold = setTimeout(() => {
+            if (!rec.moved && this.sim.pointer === rec) {
+              this.sim.pointer = null;
+              const sel = this.state.selected.includes(it.id) ? this.state.selected : this.state.selected.concat([it.id]);
+              this.setState({ selectMode: true, selected: sel });
+            }
+          }, 460);
+        }
+      },
+      move: (e) => {
+        const rec = this.sim.pointer;
+        if (!rec || rec.id !== it.id) return;
+        const dx = e.clientX - rec.x0, dy = e.clientY - rec.y0;
+        if (!rec.moved && dx * dx + dy * dy < 49) return;
+        rec.moved = true;
+        clearTimeout(this.sim.hold);
+        this.sim.drag = { id: it.id, px: (e.clientX - rec.rect.left) * rec.sx, py: (e.clientY - rec.rect.top) * rec.sx };
+      },
+      up: () => {
+        clearTimeout(this.sim.hold);
+        const rec = this.sim.pointer;
+        this.sim.drag = null;
+        if (!rec || rec.id !== it.id) return;
+        this.sim.pointer = null;
+        if (rec.moved) return;
+        if (this.state.selectMode) { if (it.kind !== 'ghost') this.toggleSelect(it.id); return; }
+        if (it.kind === 'ghost') { this.openDetail(it.label, 'view'); return; }
+        if (it.kind === 'cluster') { this.setState({ clusterOpen: it.id }); return; }
+        const n = this.sim.nodes[it.id];
+        if (n) this.setState({ infoBubble: { id: it.id, x: n.x, y: n.y, r: n.r } });
+      },
+      cancel: () => { clearTimeout(this.sim.hold); this.sim.pointer = null; this.sim.drag = null; }
+    };
+  }
+  bubbleVals() {
+    const st = this.state;
+    const T = this.totals();
+    const items = this.simItems || this.bubbleItems();
+    const bubbles = items.map((it) => {
+      const isC = it.kind === 'cluster';
+      const labelFs = it.kind === 'ghost' ? 10 : Math.max(10, Math.min(19, it.r * 0.32));
+      return Object.assign({
+        label: it.label,
+        isCluster: isC,
+        count: isC ? String(it.count) : '',
+        showPct: it.kind !== 'ghost' && it.r >= 27,
+        pct: it.kind === 'ghost' ? '' : this.pctStr(it.plPct || 0),
+        outerStyle: {
+          position: 'absolute', left: 0, top: 0, width: it.r * 2, height: it.r * 2,
+          touchAction: 'none', cursor: 'grab', zIndex: isC ? 3 : 2, willChange: 'transform'
+        },
+        faceStyle: this.bubbleFace(it),
+        labelStyle: { fontSize: labelFs, fontWeight: 800, letterSpacing: '-0.2px', lineHeight: 1.1, maxWidth: it.r * 1.7, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+        pctStyle: {
+          fontSize: Math.max(9.5, Math.min(13, it.r * 0.2)), fontWeight: 650, fontVariantNumeric: 'tabular-nums', marginTop: 1,
+          color: (it.plPct || 0) > 1.5 ? '#8FE8BD' : (it.plPct || 0) < -1.5 ? '#F0A198' : 'rgba(235,235,245,0.55)'
+        }
+      }, this.bubbleHandlers(it));
+    });
+
+    const info = st.infoBubble;
+    let infoVals = {};
+    if (info) {
+      const p = st.positions.find(q => q.t === info.id);
+      const a = this.ASSETS[info.id];
+      if (p && a) {
+        const pl = (a.price - p.avg) * p.sh;
+        const F = this.fieldEl;
+        const W = F ? F.offsetWidth : 402;
+        const left = Math.max(10, Math.min(W - 206, info.x - 98));
+        const above = info.y - info.r - 128;
+        infoVals = {
+          infoTicker: info.id, infoName: a.name,
+          infoValue: this.money(p.sh * a.price, 0),
+          infoPl: this.signedMoney(pl, 0) + ' (' + this.pctStr((a.price - p.avg) / p.avg * 100) + ') all time',
+          infoPlStyle: { fontSize: 12, fontWeight: 650, marginTop: 5, fontVariantNumeric: 'tabular-nums', color: pl >= 0 ? this.MINT : '#F0A198' },
+          infoStyle: {
+            position: 'absolute', width: 196, left, top: above > 8 ? above : info.y + info.r + 12, zIndex: 10,
+            padding: '12px 14px', borderRadius: 18, boxSizing: 'border-box',
+            background: 'rgba(30,30,34,0.78)', backdropFilter: 'blur(30px) saturate(180%)', WebkitBackdropFilter: 'blur(30px) saturate(180%)',
+            border: '0.5px solid rgba(255,255,255,0.12)', boxShadow: '0 14px 34px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.09)',
+            animation: 'ftMenuIn 0.2s cubic-bezier(0.2,0.9,0.3,1.15)'
+          },
+          infoDetails: () => { this.setState({ infoBubble: null }); this.openDetail(info.id, 'view'); },
+          infoPop: () => this.popBubbles([info.id])
+        };
+      }
+    }
+
+    const canCluster = st.selected.length >= 2;
+    return Object.assign({
+      fieldRef: (el) => { this.fieldEl = el; },
+      fieldDown: (e) => { if (e.target === e.currentTarget && st.infoBubble) this.setState({ infoBubble: null }); },
+      bubbles,
+      bubbleHeroValue: this.privacy() ? '$•••••••' : this.money(T.val),
+      bubbleHeroDelta: this.signedMoney(T.day, 2) + ' (' + this.pctStr(T.dayPct) + ') Today',
+      bubbleHeroDeltaStyle: { fontSize: 12.5, fontWeight: 650, fontVariantNumeric: 'tabular-nums', marginTop: 3, color: T.day >= 0 ? this.MINT : '#F0A198' },
+      openCorr: () => this.setState({ corrOpen: true, sheetClosing: false }),
+      restoreBubble: () => this.restoreBubble(),
+      restoreStyle: {
+        position: 'relative', width: 34, height: 34, borderRadius: 999, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'rgba(120,120,128,0.22)', backdropFilter: 'blur(16px) saturate(170%)', WebkitBackdropFilter: 'blur(16px) saturate(170%)',
+        border: '0.5px solid rgba(255,255,255,0.12)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12)',
+        color: st.popped.length ? '#7BE0AE' : 'rgba(235,235,245,0.4)'
+      },
+      restoreToolbarStyle: {
+        display: 'flex', alignItems: 'center', gap: 6, padding: '8px 13px', borderRadius: 999,
+        fontSize: 13, fontWeight: 600, color: st.popped.length ? '#F2F2F4' : 'rgba(235,235,245,0.35)'
+      },
+      poppedAny: st.popped.length > 0,
+      poppedCount: String(st.popped.length),
+      selectMode: st.selectMode,
+      notSelectMode: !st.selectMode,
+      selCount: st.selected.length + ' selected',
+      createClusterFn: () => this.createCluster(),
+      clusterBtnStyle: {
+        display: 'flex', alignItems: 'center', gap: 5, padding: '8px 13px', borderRadius: 999,
+        fontSize: 13, fontWeight: 700,
+        background: canCluster ? 'rgba(123,224,174,0.16)' : 'transparent',
+        border: canCluster ? '0.5px solid rgba(123,224,174,0.22)' : '0.5px solid transparent',
+        color: canCluster ? '#7BE0AE' : 'rgba(235,235,245,0.35)'
+      },
+      popSelectedFn: () => this.popBubbles(st.selected),
+      doneSelect: () => this.setState({ selectMode: false, selected: [] }),
+      infoOn: !!info && !!infoVals.infoStyle
+    }, infoVals);
+  }
+  closeSheet(kind) {
+    this.setState({ sheetClosing: kind });
+    setTimeout(() => {
+      if (!this._mounted) return;
+      const patch = { sheetClosing: false };
+      if (kind === 'add') patch.addOpen = false;
+      if (kind === 'detail') { patch.detail = null; patch.detailMode = 'view'; }
+      if (kind === 'corr') patch.corrOpen = false;
+      this.setState(patch);
+    }, 330);
+  }
+  sheetStyle(kind, top, z) {
+    const closing = this.state.sheetClosing === kind;
+    return {
+      position: 'absolute', left: 0, right: 0, bottom: 0, top, zIndex: z,
+      display: 'flex', flexDirection: 'column', boxSizing: 'border-box',
+      borderRadius: '28px 28px 0 0', overflow: 'hidden',
+      background: 'rgba(17,17,19,0.9)',
+      backdropFilter: 'blur(44px) saturate(180%)', WebkitBackdropFilter: 'blur(44px) saturate(180%)',
+      borderTop: '0.5px solid rgba(255,255,255,0.13)',
+      boxShadow: '0 -18px 50px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.08)',
+      animation: closing ? 'none' : 'ftSheetUp 0.46s cubic-bezier(0.32,0.72,0,1)',
+      transform: closing ? 'translateY(104%)' : 'translateY(0)',
+      transition: 'transform 0.33s cubic-bezier(0.5,0,0.7,0.4)'
+    };
+  }
+  detailSeries(t) {
+    const key = 'dt-' + t;
+    if (this.seriesCache[key]) return this.seriesCache[key];
+    const a = this.ASSETS[t];
+    const rnd = this.seeded(key);
+    const drift = (a.price - a.prev) / a.prev * 7 + (rnd() - 0.42) * 0.1;
+    const n = 48, raw = [1];
+    for (let i = 1; i < n; i++) raw.push(raw[i - 1] * (1 + (rnd() - 0.5) * 0.024));
+    const start = a.price / (1 + drift);
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const lin = raw[0] + (raw[n - 1] - raw[0]) * (i / (n - 1));
+      out.push(start * Math.pow(a.price / start, i / (n - 1)) * (raw[i] / lin));
+    }
+    out[n - 1] = a.price;
+    this.seriesCache[key] = out;
+    return out;
+  }
+  saveForm() {
+    const st = this.state;
+    const t = st.detail;
+    const sh = parseFloat(st.formShares), avg = parseFloat(st.formPrice);
+    if (!(sh > 0) || !(avg > 0)) { this.toast('Enter shares and average price'); return; }
+    const positions = st.positions.slice();
+    const ex = positions.find(p => p.t === t);
+    let msg;
+    if (ex) { ex.sh = sh; ex.avg = avg; msg = 'Position updated'; }
+    else { positions.push({ t, sh, avg }); msg = 'Added ' + t + ' to Portfolio'; }
+    const watchlist = st.watchlist.filter(w => w !== t);
+    if (st.watchlist.includes(t)) msg = t + ' converted to position';
+    this.setState({ positions, watchlist, popped: st.popped.filter(p => p !== t) });
+    this.closeSheet('detail');
+    this.toast(msg);
+  }
+  sheetVals() {
+    const st = this.state;
+    const MINT = this.MINT;
+    const out = {
+      addOpen: st.addOpen,
+      closeAdd: () => this.closeSheet('add'),
+      addSheetStyle: this.sheetStyle('add', 54, 51),
+      addSearch: st.addSearch,
+      onAddSearch: (e) => this.setState({ addSearch: e.target.value }),
+      clearAddSearch: () => this.setState({ addSearch: '' }),
+      addHasQuery: st.addSearch.length > 0,
+      addShowSuggest: st.addSearch.length === 0,
+      addSuggest: ['NVDA', 'VOO', 'SOL', 'DIS', 'SCHD'].map(k => ({ label: k, pick: () => this.setState({ addSearch: k, addTab: this.ASSETS[k].type }) })),
+      detailOn: !!st.detail,
+      closeDetail: () => this.closeSheet('detail')
+    };
+
+    const tabs = ['Stocks', 'ETFs', 'Crypto'];
+    const tIdx = tabs.indexOf(st.addTab);
+    out.addTabs = tabs.map(k => ({
+      label: k,
+      go: () => this.setState({ addTab: k }),
+      style: {
+        flex: 1, position: 'relative', zIndex: 1, padding: '7px 0', fontSize: 13, fontWeight: 650,
+        color: st.addTab === k ? '#FFFFFF' : 'rgba(235,235,245,0.5)', transition: 'color 0.25s', borderRadius: 10
+      }
+    }));
+    out.addThumbStyle = {
+      position: 'absolute', top: 2.5, bottom: 2.5,
+      left: 'calc(2.5px + ' + tIdx + ' * (100% - 5px) / 3)', width: 'calc((100% - 5px) / 3)',
+      borderRadius: 10, background: 'rgba(255,255,255,0.14)', border: '0.5px solid rgba(255,255,255,0.1)', boxSizing: 'border-box',
+      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.14), 0 2px 6px rgba(0,0,0,0.3)',
+      transition: 'left 0.3s cubic-bezier(0.3,0.9,0.3,1)'
+    };
+
+    const q = st.addSearch.trim().toLowerCase();
+    const owned = {};
+    st.positions.forEach(p => { owned[p.t] = 1; });
+    const list = Object.keys(this.ASSETS)
+      .filter(t => this.ASSETS[t].type === st.addTab)
+      .filter(t => !q || t.toLowerCase().includes(q) || this.ASSETS[t].name.toLowerCase().includes(q))
+      .slice(0, 9);
+    out.addResults = list.map((t, i) => {
+      const a = this.ASSETS[t];
+      const chg = (a.price - a.prev) / a.prev * 100;
+      const up = chg >= 0;
+      return {
+        ticker: t, name: a.name, initial: t.slice(0, t.length > 3 ? 2 : 1),
+        owned: !!owned[t],
+        price: this.money(a.price, a.price > 9999 ? 0 : 2),
+        chg: this.pctStr(chg),
+        chgStyle: {
+          display: 'inline-block', marginTop: 3, fontSize: 11.5, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+          padding: '2px 7px', borderRadius: 99,
+          color: up ? '#0A2A1B' : '#FFF1EF', background: up ? MINT : '#C0665E'
+        },
+        logoStyle: this.logoStyle(t, 36),
+        rowStyle: {
+          display: 'flex', alignItems: 'center', gap: 11, width: '100%', textAlign: 'left',
+          padding: '11px 14px', background: 'transparent', color: '#F2F2F4',
+          borderBottom: i < list.length - 1 ? '0.5px solid rgba(255,255,255,0.06)' : 'none'
+        },
+        pick: () => this.openDetail(t, 'view')
+      };
+    });
+    out.addEmpty = list.length === 0;
+
+    // detail sheet
+    const t = st.detail;
+    if (!t) {
+      return Object.assign(out, {
+        detailSheetStyle: {}, dLogoStyle: {}, dInitial: '', dTicker: '', dName: '', dPrice: '', dDay: '', dDayStyle: {},
+        dLine: '', dArea: '', dAreaFill: 'none', dLineColor: 'none', dRangeNote: '', dStats: [],
+        dOwnedView: false, dWatchView: false, dNoneView: false, dFormOn: false,
+        dPosShares: '', dPosAvg: '', dPosPl: '', dPosPlStyle: {}, dEdit: null, dConvert: null, dAlert: null,
+        dAddPos: null, dAddWatch: null, dFormTitle: '', dFormEst: '', dSave: null, dSaveLabel: '', dCanRemove: false, dRemove: null,
+        formShares: st.formShares, formPrice: st.formPrice, onFormShares: () => {}, onFormPrice: () => {}
+      });
+    }
+    const a = this.ASSETS[t];
+    const pos = st.positions.find(p => p.t === t);
+    const onWatch = st.watchlist.includes(t);
+    const isForm = st.detailMode === 'edit' || st.detailMode === 'form';
+    const chg = (a.price - a.prev) / a.prev * 100;
+    const up = chg >= 0;
+
+    const s = this.detailSeries(t);
+    const W = 358, H = 118, top = 10, bot = 10;
+    let mn = Infinity, mx = -Infinity;
+    for (const v of s) { if (v < mn) mn = v; if (v > mx) mx = v; }
+    const span = (mx - mn) || 1;
+    const pts = s.map((v, i) => [i / (s.length - 1) * W, top + (1 - (v - mn) / span) * (H - top - bot)]);
+    const dLine = this.smoothPath(pts);
+    const trendUp = s[s.length - 1] >= s[0];
+
+    const rnd = this.seeded('st-' + t);
+    const isCrypto = a.type === 'Crypto', isEtf = a.type === 'ETFs';
+    const fm = (v) => this.privacy() ? '$•••••' : '$' + v.toLocaleString('en-US', { minimumFractionDigits: v > 9999 ? 0 : 2, maximumFractionDigits: v > 9999 ? 0 : 2 });
+    const stats = [
+      { k: 'OPEN', v: fm(a.prev * 1.002) },
+      { k: 'HIGH', v: fm(Math.max(a.price, a.prev) * 1.011) },
+      { k: 'LOW', v: fm(Math.min(a.price, a.prev) * 0.987) },
+      { k: isCrypto ? '24H VOLUME' : 'VOLUME', v: isCrypto ? '$' + (rnd() * 30 + 8).toFixed(1) + 'B' : (rnd() * 42 + 9).toFixed(1) + 'M' },
+      { k: 'MKT CAP', v: isEtf ? (rnd() * 900 + 200).toFixed(0) + 'B AUM' : '$' + (isCrypto ? (rnd() * 1.4 + 0.8).toFixed(2) : (rnd() * 2.6 + 0.3).toFixed(2)) + 'T' },
+      { k: 'P/E', v: (isCrypto || isEtf) ? '—' : (rnd() * 44 + 15).toFixed(1) }
+    ];
+    out.dStats = stats.map((sx, i) => Object.assign(sx, {
+      cellStyle: { padding: '10px 0', borderBottom: i < 4 ? '0.5px solid rgba(255,255,255,0.06)' : 'none' }
+    }));
+
+    const shNum = parseFloat(st.formShares);
+    Object.assign(out, {
+      detailSheetStyle: this.sheetStyle('detail', 96, 61),
+      dLogoStyle: this.logoStyle(t, 52), dInitial: t.slice(0, t.length > 3 ? 2 : 1),
+      dTicker: t, dName: a.name,
+      dPrice: this.money(a.price, a.price > 9999 ? 0 : 2),
+      dDay: this.pctStr(chg) + ' today',
+      dDayStyle: { fontSize: 12, fontWeight: 700, fontVariantNumeric: 'tabular-nums', marginTop: 2, color: up ? MINT : '#F0A198' },
+      dLine, dArea: dLine + 'L358 118L0 118Z',
+      dAreaFill: trendUp ? 'url(#ftFillDM)' : 'url(#ftFillDR)',
+      dLineColor: trendUp ? MINT : this.RED,
+      dRangeNote: this.pctStr((s[s.length - 1] - s[0]) / s[0] * 100),
+      dOwnedView: !!pos && !isForm,
+      dWatchView: !pos && onWatch && !isForm,
+      dNoneView: !pos && !onWatch && !isForm,
+      dFormOn: isForm,
+      dPosShares: pos ? String(pos.sh) : '',
+      dPosAvg: pos ? this.money(pos.avg, pos.avg > 999 ? 0 : 2) : '',
+      dPosPl: pos ? this.signedMoney((a.price - pos.avg) * pos.sh, 0) : '',
+      dPosPlStyle: { fontSize: 15, fontWeight: 700, fontVariantNumeric: 'tabular-nums', marginTop: 2, color: pos && a.price >= pos.avg ? MINT : '#F0A198' },
+      dEdit: () => this.setState({ detailMode: 'edit', formShares: pos ? String(pos.sh) : '', formPrice: pos ? String(pos.avg) : '' }),
+      dConvert: () => this.setState({ detailMode: 'form', formShares: '', formPrice: String(a.price) }),
+      dAlert: () => { this.closeSheet('detail'); this.toast('Price alert set for ' + t); },
+      dAddPos: () => this.setState({ detailMode: 'form', formShares: '', formPrice: String(a.price) }),
+      dAddWatch: () => { this.setState({ watchlist: st.watchlist.concat([t]) }); this.closeSheet('detail'); this.toast('Added ' + t + ' to Watchlist'); },
+      dFormTitle: pos ? 'EDIT POSITION' : (onWatch ? 'CONVERT TO POSITION' : 'NEW POSITION'),
+      dFormEst: (shNum > 0 ? '≈ ' + this.money(shNum * a.price, 2) + ' at current price' : 'Value updates at the current market price.'),
+      dSave: () => this.saveForm(),
+      dSaveLabel: pos ? 'Save Changes' : (onWatch ? 'Convert to Position' : 'Add to Portfolio'),
+      dCanRemove: !!pos,
+      dRemove: () => {
+        this.setState({ positions: st.positions.filter(p => p.t !== t) });
+        this.closeSheet('detail');
+        this.toast('Removed ' + t + ' from portfolio');
+      },
+      formShares: st.formShares, formPrice: st.formPrice,
+      onFormShares: (e) => this.setState({ formShares: e.target.value }),
+      onFormPrice: (e) => this.setState({ formPrice: e.target.value })
+    });
+    return out;
+  }
+  corrOf(a, b) {
+    const rnd = this.seeded('cr-' + [a, b].sort().join('~'));
+    let v = 0.12 + rnd() * 0.48;
+    const A = this.ASSETS[a], B = this.ASSETS[b];
+    if (A && B) {
+      if (A.sector === B.sector) v += 0.26;
+      if (A.type === 'Crypto' && B.type === 'Crypto') v += 0.18;
+      if ((A.type === 'Crypto') !== (B.type === 'Crypto')) v -= 0.14;
+    }
+    return Math.max(0.05, Math.min(0.93, v));
+  }
+  avgCorr(tickers) {
+    let s = 0, n = 0;
+    for (let i = 0; i < tickers.length; i++) for (let j = i + 1; j < tickers.length; j++) { s += this.corrOf(tickers[i], tickers[j]); n++; }
+    return n ? s / n : 0;
+  }
+  genSwipe(key, openW, onTap) {
+    return {
+      setEl: (el) => { this.rowEls[key] = el; },
+      onDown: (e) => {
+        this.rowDrag = { id: key, x0: e.clientX, t0: Date.now(), moved: false, base: this.state.swipeId === key ? -openW : 0, openW };
+        e.currentTarget.setPointerCapture(e.pointerId);
+      },
+      onMove: (e) => {
+        const d = this.rowDrag;
+        if (!d || d.id !== key) return;
+        const dx = e.clientX - d.x0;
+        if (!d.moved && Math.abs(dx) < 7) return;
+        d.moved = true;
+        d.dx = Math.max(-openW - 26, Math.min(10, d.base + dx));
+        const el = this.rowEls[key];
+        if (el) { el.style.transition = 'none'; el.style.transform = 'translateX(' + d.dx + 'px)'; }
+      },
+      onUp: () => {
+        const d = this.rowDrag;
+        if (!d || d.id !== key) return;
+        this.rowDrag = null;
+        const el = this.rowEls[key];
+        if (el) el.style.transition = '';
+        if (!d.moved) {
+          if (Date.now() - d.t0 < 450) {
+            if (this.state.swipeId) { this.setState({ swipeId: null }); if (el) el.style.transform = ''; }
+            else if (onTap) onTap();
+          }
+          return;
+        }
+        const open = d.dx < -openW * 0.45;
+        if (el) el.style.transform = 'translateX(' + (open ? -openW : 0) + 'px)';
+        this.setState({ swipeId: open ? key : (this.state.swipeId === key ? null : this.state.swipeId) });
+      }
+    };
+  }
+  breakCluster(id) {
+    const st = this.state;
+    const c = st.clusters.find(x => x.id === id);
+    if (!c) return;
+    const n = this.sim.nodes[id];
+    this.spawnAt = this.spawnAt || {};
+    c.members.forEach((m, i) => {
+      this.spawnAt[m] = n ? { x: n.x + Math.cos(i * 2.1) * (n.r * 0.7), y: n.y + Math.sin(i * 2.1) * (n.r * 0.7) } : undefined;
+      if (!this.spawnAt[m]) delete this.spawnAt[m];
+    });
+    this.setState({ clusters: st.clusters.filter(x => x.id !== id), clusterOpen: null });
+    this.toast('Cluster broken up');
+  }
+  childFace(plPct, r, i) {
+    const base = {
+      position: 'absolute', inset: 0, borderRadius: '50%', boxSizing: 'border-box',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      userSelect: 'none', WebkitUserSelect: 'none', textAlign: 'center',
+      backdropFilter: 'blur(9px)', WebkitBackdropFilter: 'blur(9px)',
+      animation: 'ftChildIn 0.5s cubic-bezier(0.34,1.4,0.45,1) both',
+      animationDelay: (60 + i * 55) + 'ms'
+    };
+    if (plPct > 1.5) return Object.assign(base, {
+      background: 'radial-gradient(circle at 32% 28%, rgba(123,224,174,0.26), rgba(123,224,174,0.09) 55%, rgba(123,224,174,0.04))',
+      border: '1px solid rgba(123,224,174,0.28)', color: '#DCF8EA',
+      boxShadow: '0 0 ' + Math.round(r * 0.7) + 'px rgba(94,214,158,0.2)'
+    });
+    if (plPct < -1.5) return Object.assign(base, {
+      background: 'radial-gradient(circle at 32% 28%, rgba(227,123,114,0.24), rgba(227,123,114,0.08) 55%, rgba(227,123,114,0.04))',
+      border: '1px solid rgba(227,123,114,0.26)', color: '#F8DFDB',
+      boxShadow: '0 0 ' + Math.round(r * 0.6) + 'px rgba(217,106,96,0.16)'
+    });
+    return Object.assign(base, {
+      background: 'radial-gradient(circle at 32% 28%, rgba(255,255,255,0.12), rgba(255,255,255,0.045) 55%, rgba(255,255,255,0.02))',
+      border: '1px solid rgba(255,255,255,0.15)', color: '#ECECEE',
+      boxShadow: '0 0 ' + Math.round(r * 0.45) + 'px rgba(255,255,255,0.08)'
+    });
+  }
+  miscVals() {
+    const st = this.state;
+    const MINT = this.MINT;
+    const out = {};
+
+    // watchlist
+    out.wCount = st.watchlist.length + (st.watchlist.length === 1 ? ' ASSET' : ' ASSETS');
+    out.wEmpty = st.watchlist.length === 0;
+    out.wRows = st.watchlist.map((t) => {
+      const a = this.ASSETS[t];
+      const chg = (a.price - a.prev) / a.prev * 100;
+      const key = 'w-' + t;
+      const ls = this.logoStyle(t, 38);
+      ls.filter = 'grayscale(0.65) brightness(0.92)';
+      return Object.assign({
+        ticker: t, name: a.name, initial: t.slice(0, t.length > 3 ? 2 : 1),
+        logoStyle: ls,
+        price: this.money(a.price, a.price > 999 ? 0 : 2),
+        chg: this.pctStr(chg) + ' 24h',
+        chgStyle: { fontSize: 11.5, fontWeight: 650, fontVariantNumeric: 'tabular-nums', marginTop: 2, color: chg >= 0 ? 'rgba(123,224,174,0.7)' : 'rgba(240,161,152,0.7)' },
+        frontStyle: {
+          position: 'relative', display: 'flex', alignItems: 'center', gap: 11,
+          padding: '11px 14px', background: '#0B0B0D', borderRadius: 18, boxSizing: 'border-box',
+          border: '1px dashed rgba(235,235,245,0.16)', touchAction: 'pan-y', cursor: 'pointer',
+          transform: 'translateX(' + (st.swipeId === key ? -198 : 0) + 'px)',
+          transition: 'transform 0.32s cubic-bezier(0.25,0.9,0.3,1)'
+        },
+        onConvert: () => { this.setState({ swipeId: null }); this.openDetail(t, 'form'); },
+        onAlert: () => { this.setState({ swipeId: null }); this.toast('Price alert set for ' + t); },
+        onDelete: () => { this.setState({ watchlist: st.watchlist.filter(w => w !== t), swipeId: null }); this.toast('Removed ' + t + ' from Watchlist'); }
+      }, this.genSwipe(key, 198, () => this.openDetail(t, 'view')));
+    });
+
+    // settings
+    const sepRow = (i, len) => ({
+      display: 'flex', alignItems: 'center', width: '100%', padding: '13px 16px', boxSizing: 'border-box',
+      background: 'transparent', color: '#F2F2F4',
+      borderBottom: i < len - 1 ? '0.5px solid rgba(255,255,255,0.07)' : 'none'
+    });
+    const cycle = (key, opts) => {
+      const cur = st.settings[key];
+      const nxt = opts[(opts.indexOf(cur) + 1) % opts.length];
+      const settings = Object.assign({}, st.settings);
+      settings[key] = nxt;
+      this.setState({ settings });
+    };
+    const gen = [
+      { label: 'Language', v: st.settings.language, tap: () => cycle('language', ['English', 'Deutsch', 'Français', '日本語']) },
+      { label: 'Currency', v: st.settings.currency, tap: () => cycle('currency', ['USD', 'EUR', 'GBP', 'CHF']) },
+      { label: 'Theme', v: st.settings.theme, tap: () => cycle('theme', ['Dark', 'Pure Black', 'System']) }
+    ];
+    out.generalRows = gen.map((g, i) => Object.assign(g, { rowStyle: sepRow(i, gen.length) }));
+
+    const privacyOn = this.privacy();
+    const mkToggle = (label, on, tap) => ({
+      label,
+      tap,
+      rowStyle: Object.assign({}, sepRow(0, 2)),
+      trackStyle: {
+        position: 'relative', width: 51, height: 31, borderRadius: 99, flex: 'none',
+        background: on ? MINT : 'rgba(120,120,128,0.32)', transition: 'background 0.25s',
+        boxShadow: on ? 'inset 0 1px 2px rgba(0,0,0,0.1)' : 'inset 0 1px 2px rgba(0,0,0,0.25)'
+      },
+      knobStyle: {
+        position: 'absolute', top: 2, left: on ? 22 : 2, width: 27, height: 27, borderRadius: 99,
+        background: '#FFFFFF', boxShadow: '0 3px 8px rgba(0,0,0,0.35), 0 0 1px rgba(0,0,0,0.2)',
+        transition: 'left 0.25s cubic-bezier(0.3,0.9,0.3,1)'
+      }
+    });
+    const setS = (k, v) => { const settings = Object.assign({}, st.settings); settings[k] = v; this.setState({ settings }); };
+    const toggles = [
+      mkToggle('Notifications', st.settings.notifications, () => setS('notifications', !st.settings.notifications)),
+      mkToggle('Face ID', st.settings.faceId, () => setS('faceId', !st.settings.faceId)),
+      mkToggle('Privacy Mode', privacyOn, () => this.setState({ privacyOverride: !privacyOn }))
+    ];
+    toggles.forEach((tg, i) => { tg.rowStyle = sepRow(i, toggles.length); });
+    out.toggleRows = toggles;
+
+    const abt = [
+      { label: 'Version', v: '1.0 (42)', chevOpacity: 0, tap: () => {} },
+      { label: 'Privacy Policy', v: '', chevOpacity: 1, tap: () => this.toast('Opens in Safari') },
+      { label: 'Rate followtrend', v: '', chevOpacity: 1, tap: () => this.toast('Thanks for the love') }
+    ];
+    out.aboutRows = abt.map((g, i) => Object.assign(g, { rowStyle: sepRow(i, abt.length) }));
+
+    // cluster view
+    const c = st.clusterOpen ? st.clusters.find(x => x.id === st.clusterOpen) : null;
+    out.clusterOn = !!c;
+    out.closeCluster = () => this.setState({ clusterOpen: null });
+    out.breakClusterFn = () => { if (c) this.breakCluster(c.id); };
+    if (c) {
+      const members = c.members
+        .map(m => {
+          const p = st.positions.find(q => q.t === m);
+          if (!p) return null;
+          const a = this.ASSETS[m];
+          return { t: m, value: this.posVal(p), plPct: (a.price - p.avg) / p.avg * 100, pl: (a.price - p.avg) * p.sh, cost: p.sh * p.avg };
+        })
+        .filter(Boolean);
+      const totV = members.reduce((s, m) => s + m.value, 0);
+      const totCost = members.reduce((s, m) => s + m.cost, 0);
+      const retPct = (totV - totCost) / totCost * 100;
+      const rs = members.map(m => Math.round(25 + Math.sqrt(m.value / totV) * 26));
+      const maxR = Math.max(...rs);
+      const n = members.length;
+      const R = Math.min(132, Math.max(92, n < 2 ? 0 : (2 * maxR + 12) / (2 * Math.sin(Math.PI / n))));
+      const cx = 201, cy = 262;
+      out.clName = c.name.toUpperCase();
+      out.clValue = this.money(totV, 0);
+      out.clReturn = this.signedMoney(totV - totCost, 0) + ' (' + this.pctStr(retPct) + ') all time';
+      out.clReturnStyle = { fontSize: 12.5, fontWeight: 650, fontVariantNumeric: 'tabular-nums', marginTop: 3, color: retPct >= 0 ? MINT : '#F0A198' };
+      out.clRingStyle = {
+        position: 'absolute', left: cx - R - maxR / 2, top: cy - (R + maxR / 2) * 0.92, width: (R + maxR / 2) * 2, height: (R + maxR / 2) * 2 * 0.92,
+        borderRadius: '50%', border: '1px dashed rgba(255,255,255,0.09)', animation: 'ftFadeIn 0.5s'
+      };
+      out.clChildren = members.map((m, i) => {
+        const r = rs[i];
+        const ang = -Math.PI / 2 + i * Math.PI * 2 / n;
+        const x = cx + Math.cos(ang) * R, y = cy + Math.sin(ang) * R * 0.92;
+        return {
+          label: m.t,
+          pct: this.pctStr(m.plPct),
+          tap: () => this.openDetail(m.t, 'view'),
+          wrapStyle: { position: 'absolute', left: x - r, top: y - r, width: r * 2, height: r * 2, pointerEvents: 'auto', cursor: 'pointer' },
+          faceStyle: this.childFace(m.plPct, r, i),
+          labelStyle: { fontSize: Math.max(11, Math.min(16, r * 0.34)), fontWeight: 800, letterSpacing: '-0.2px' },
+          pctStyle: { fontSize: Math.max(9.5, Math.min(12, r * 0.22)), fontWeight: 650, fontVariantNumeric: 'tabular-nums', marginTop: 1, color: m.plPct > 1.5 ? '#8FE8BD' : m.plPct < -1.5 ? '#F0A198' : 'rgba(235,235,245,0.55)' }
+        };
+      });
+      const ac = this.avgCorr(members.map(m => m.t));
+      const largest = members.slice().sort((a, b) => b.value - a.value)[0];
+      const top = members.slice().sort((a, b) => b.plPct - a.plPct)[0];
+      const vS = { fontSize: 13.5, fontWeight: 700, fontVariantNumeric: 'tabular-nums' };
+      out.clStats = [
+        { k: 'Combined value', v: this.money(totV, 0), vStyle: vS },
+        { k: 'Combined return', v: this.pctStr(retPct), vStyle: Object.assign({}, vS, { color: retPct >= 0 ? MINT : '#F0A198' }) },
+        { k: 'Avg correlation', v: '+' + ac.toFixed(2) + ' · ' + (ac < 0.3 ? 'Low' : ac < 0.6 ? 'Moderate' : 'High'), vStyle: vS },
+        { k: 'Largest holding', v: largest.t + ' · ' + (largest.value / totV * 100).toFixed(0) + '%', vStyle: vS },
+        { k: 'Top performer', v: top.t + ' · ' + this.pctStr(top.plPct), vStyle: Object.assign({}, vS, { color: MINT }) }
+      ];
+    } else {
+      Object.assign(out, { clName: '', clValue: '', clReturn: '', clReturnStyle: {}, clRingStyle: { display: 'none' }, clChildren: [], clStats: [] });
+    }
+
+    // correlation sheet
+    out.corrOpen = st.corrOpen;
+    out.closeCorr = () => this.closeSheet('corr');
+    out.corrSheetStyle = this.sheetStyle('corr', 168, 71);
+    const pa = this.avgCorr(st.positions.map(p => p.t));
+    out.corrYouVal = '+' + pa.toFixed(2);
+    out.corrYouStyle = {
+      position: 'absolute', top: 0, left: ((pa + 1) / 2 * 100) + '%', transform: 'translateX(-50%)',
+      fontSize: 10.5, fontWeight: 700, color: '#0A2A1B', background: MINT,
+      padding: '2.5px 8px', borderRadius: 99, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums',
+      boxShadow: '0 3px 10px rgba(123,224,174,0.3)'
+    };
+    return out;
+  }
+  jumpCluster() {
+    let c = this.state.clusters[0];
+    if (!c) {
+      const avail = ['MSFT', 'GOOGL', 'AMZN', 'AAPL', 'V'].filter(t => this.state.positions.find(p => p.t === t) && !this.state.popped.includes(t));
+      if (avail.length < 2) { this.jump({ tab: 'bubbles' }); this.toast('Hold a bubble to select, then tap Cluster'); return; }
+      c = { id: 'c' + Date.now(), name: avail[0] + ' +' + (Math.min(3, avail.length) - 1), members: avail.slice(0, 3) };
+      this.setState({ clusters: this.state.clusters.concat([c]) });
+    }
+    this.jump({ tab: 'bubbles', clusterOpen: c.id });
+  }
+  widgetVals() {
+    const st = this.state;
+    const T = this.totals();
+    const MINT = this.MINT;
+    const priv = this.privacy();
+    const dayUp = T.day >= 0;
+
+    const s = this.series('1D');
+    let mn = Infinity, mx = -Infinity;
+    for (const v of s) { if (v < mn) mn = v; if (v > mx) mx = v; }
+    const span = (mx - mn) || 1;
+    const pts = s.map((v, i) => [i / (s.length - 1) * 126, 4 + (1 - (v - mn) / span) * 28]);
+    const wgLine = this.smoothPath(pts);
+
+    let top = null;
+    for (const p of st.positions) {
+      const a = this.ASSETS[p.t];
+      const pl = (a.price - p.avg) / p.avg * 100;
+      if (!top || pl > top.pl) top = { t: p.t, pl };
+    }
+    top = top || { t: 'NVDA', pl: 0 };
+
+    const sorted = st.positions.slice().sort((a, b) => this.posVal(b) - this.posVal(a));
+    const top4 = sorted.slice(0, 4);
+    const rest = sorted.slice(4).reduce((sm, p) => sm + this.posVal(p), 0);
+    const segs = top4.map(p => ({ name: p.t, v: this.posVal(p) }));
+    if (rest > 0) segs.push({ name: 'Other', v: rest });
+    const segColors = [MINT, 'rgba(123,224,174,0.55)', 'rgba(235,235,245,0.66)', 'rgba(235,235,245,0.34)', 'rgba(235,235,245,0.16)'];
+
+    const activeKey = st.addOpen ? 'add' : st.detail ? 'detail' : st.corrOpen ? 'corr' : st.clusterOpen ? 'cluster' : st.tab;
+    const chip = (key, label, go) => ({
+      label, go,
+      style: {
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, width: '100%',
+        padding: '10px 13px', borderRadius: 14, boxSizing: 'border-box', textAlign: 'left',
+        fontSize: 13, fontWeight: 600,
+        color: activeKey === key ? '#7BE0AE' : 'rgba(235,235,245,0.72)',
+        background: activeKey === key ? 'rgba(123,224,174,0.09)' : 'rgba(255,255,255,0.045)',
+        border: activeKey === key ? '0.5px solid rgba(123,224,174,0.3)' : '0.5px solid rgba(255,255,255,0.08)',
+        transition: 'color 0.2s, background 0.2s, border 0.2s'
+      }
+    });
+
+    return {
+      wgValue: priv ? '$•••••••' : this.money(T.val, 0),
+      wgDay: this.signedMoney(T.day, 0) + ' (' + this.pctStr(T.dayPct) + ') today',
+      wgDayStyle: { fontSize: 12.5, fontWeight: 650, fontVariantNumeric: 'tabular-nums', marginTop: 4, color: dayUp ? MINT : '#F0A198' },
+      wgDayPct: this.pctStr(T.dayPct),
+      wgDayTinyStyle: { fontSize: 11, fontWeight: 700, fontVariantNumeric: 'tabular-nums', marginTop: 3, color: dayUp ? MINT : '#F0A198' },
+      wgDayPillStyle: {
+        fontSize: 12, fontWeight: 750, fontVariantNumeric: 'tabular-nums', padding: '4px 10px', borderRadius: 99,
+        color: dayUp ? '#0A2A1B' : '#FFF1EF', background: dayUp ? MINT : '#C0665E'
+      },
+      wgLine, wgArea: wgLine + 'L126 36L0 36Z',
+      wgTopTicker: top.t, wgTopInitial: top.t.slice(0, top.t.length > 3 ? 2 : 1),
+      wgTopLogo: this.logoStyle(top.t, 26),
+      wgTopPct: this.pctStr(top.pl),
+      wgTopSpark: this.spark(top.t),
+      wgAllocSegs: segs.map((sg, i) => ({ style: { width: (sg.v / T.val * 100).toFixed(1) + '%', background: segColors[i], borderRadius: 99 } })),
+      wgAllocLegend: segs.slice(0, 4).map((sg, i) => ({
+        name: sg.name, pct: (sg.v / T.val * 100).toFixed(0) + '%',
+        dotStyle: { width: 7, height: 7, borderRadius: 99, background: segColors[i], flex: 'none' }
+      })),
+      wgWatch: st.watchlist.slice(0, 3).map(t => {
+        const a = this.ASSETS[t];
+        const chg = (a.price - a.prev) / a.prev * 100;
+        return {
+          t, name: a.name.split(' ')[0],
+          chg: this.pctStr(chg),
+          chgStyle: { fontSize: 12, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: chg >= 0 ? 'rgba(123,224,174,0.75)' : 'rgba(240,161,152,0.75)' }
+        };
+      }),
+      wgQuickAdd: () => this.jump({ addOpen: true }),
+      wgQuickSearch: () => this.jump({ tab: 'portfolio' }),
+      jumpChips: [
+        chip('portfolio', 'Portfolio', () => this.jump({ tab: 'portfolio' })),
+        chip('bubbles', 'Bubble View', () => this.jump({ tab: 'bubbles' })),
+        chip('cluster', 'Cluster View', () => this.jumpCluster()),
+        chip('add', 'Add Asset', () => this.jump({ addOpen: true })),
+        chip('detail', 'Asset Detail', () => { this.jump({ tab: 'portfolio' }); this.openDetail('AAPL', 'view'); }),
+        chip('watchlist', 'Watchlist', () => this.jump({ tab: 'watchlist' })),
+        chip('corr', 'Correlation Info', () => this.jump({ tab: 'bubbles', corrOpen: true })),
+        chip('settings', 'Settings', () => this.jump({ tab: 'settings' }))
+      ]
+    };
+  }
+
+  componentDidMount() {
+    this._mounted = true;
+    if (this.syncSim) this.syncSim();
+    if (this.startLoop) this.startLoop();
+  }
+  componentDidUpdate() { if (this.syncSim) this.syncSim(); }
+  componentWillUnmount() { this._mounted = false; if (this.sim.raf) cancelAnimationFrame(this.sim.raf); clearTimeout(this._toastT); }
+
+  renderVals() {
+    return Object.assign({}, this.coreVals(), this.bubbleVals(), this.sheetVals(), this.miscVals(), this.widgetVals());
+  }
+}
+</script>
+</body>
+</html>

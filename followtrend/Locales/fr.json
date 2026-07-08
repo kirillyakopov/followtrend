@@ -7,7 +7,8 @@
     "gesamt": "Total",
     "einzel": "Articles",
     "bubbles": "Bulles",
-    "anlegen": "Ajouter"
+    "anlegen": "Ajouter",
+    "profile": "Profil"
   },
   "portfolio": {
     "brokerage": "Courtage",
@@ -25,7 +26,19 @@
     "stueck": "Actions",
     "loeschen": "Supprimer",
     "watchlist": "Liste de surveillance",
-    "risk_correlation": "RISQUE ET CORRÉLATION"
+    "risk_correlation": "RISQUE ET CORRÉLATION",
+    "net_worth": "PATRIMOINE NET",
+    "all_time_return": "RENDEMENT GLOBAL",
+    "allocation": "ALLOCATION",
+    "top_holdings": "PRINCIPALES POSITIONS",
+    "the_map": "La carte",
+    "holdings_title": "POSITIONS",
+    "add_position_title": "Ajouter une position",
+    "new_entry_title": "NOUVELLE ENTRÉE",
+    "your_profile_title": "Votre profil",
+    "account_title": "COMPTE",
+    "row_hint": "Balayez une ligne pour les actions · Touchez pour les détails",
+    "live": "En direct"
   },
   "sort": {
     "title": "TRIER LES POSITIONS",
@@ -63,8 +76,7 @@
   "einzel": {
     "depot": "PORTEFEUILLE",
     "rendite": "RENDEMENT",
-    "live": "En direct",
-    "tippe_ziehen": "Touchez · Faites glisser pour déplacer"
+    "live": "En direct"
   },
   "detail": {
     "meine_position": "MA POSITION",
@@ -92,7 +104,9 @@
     "notes_placeholder": "Entrez les notes ici...",
     "tags_placeholder": "Entrez les mots-clés séparés par des virgules...",
     "insufficient_correlation_data": "Données historiques insuffisantes pour l'analyse de corrélation",
-    "pearson_correlation": "Corrélation de Pearson"
+    "pearson_correlation": "Corrélation de Pearson",
+    "watchlist_ghost_info": "Dans votre liste de surveillance — n'affecte pas la valeur du portefeuille.",
+    "today_suffix": "aujourd'hui"
   },
   "add": {
     "wertpapier_suchen": "Rechercher des actifs...",
@@ -107,7 +121,10 @@
     "uebernehmen": "Ajouter la position",
     "portfolio": "Portefeuille",
     "watchlist": "Liste de surveillance",
-    "zu_watchlist_hinzufuegen": "Ajouter à la liste de surveillance"
+    "zu_watchlist_hinzufuegen": "Ajouter à la liste de surveillance",
+    "suggested": "SUGGESTIONS",
+    "owned": "DÉTENU",
+    "approx_at_current_price": "≈ %@ au cours actuel"
   },
   "profile": {
     "profil": "Profil",
@@ -117,10 +134,17 @@
     "apple_id_verknuepft": "Apple ID associé",
     "deine_daten_sicher": "Vos données sont stockées en toute sécurité",
     "daten_apple_verknuepft": "Vos données sont associées en toute sécurité à votre Apple ID.",
-    "sprache": "Langue"
+    "sprache": "Langue",
+    "general": "Général",
+    "about": "À propos",
+    "version": "Version",
+    "currency": "Devise",
+    "price_source": "Source des prix"
   },
   "common": {
-    "fertig": "Terminé"
+    "fertig": "Terminé",
+    "abbrechen": "Annuler",
+    "speichern": "Enregistrer"
   },
   "alerts": {
     "title": "Alerte de prix",
@@ -166,7 +190,9 @@
   "advice": {
     "noActivePositions": "Aucune position",
     "noActivePositionsBody": "Ajoutez des positions actives pour débloquer le coaching de portefeuille.",
-    "allocation": { "title": "ALLOCATION DU PORTEFEUILLE" },
+    "allocation": {
+      "title": "ALLOCATION DU PORTEFEUILLE"
+    },
     "largest": {
       "title": "PLUS GRANDE POSITION",
       "warning": "%@ représente %@%% de votre portefeuille. Envisagez de réduire la concentration.",
@@ -183,10 +209,15 @@
       "emptyTitle": "Mix équilibré",
       "criticalTitle": "À surveiller",
       "warningTitle": "À examiner",
-      "infoTitle": "Semble équilibré"
+      "infoTitle": "Semble équilibré",
+      "reviewChip": "Examiner la suggestion"
     },
-    "diversification": { "title": "CONSEIL DE DIVERSIFICATION" },
-    "concentration": { "title": "ALERTE DE CONCENTRATION" },
+    "diversification": {
+      "title": "CONSEIL DE DIVERSIFICATION"
+    },
+    "concentration": {
+      "title": "ALERTE DE CONCENTRATION"
+    },
     "stablecoin": {
       "title": "CRYPTO ASSIMILABLE À DU CASH",
       "noneTitle": "Aucun stablecoin",
@@ -203,10 +234,22 @@
   },
   "bubbleInfo": {
     "title": "Intelligence des bulles",
-    "size": { "title": "Taille de la bulle", "body": "Indique le poids dans le portefeuille. Les plus grandes bulles représentent les plus grandes positions." },
-    "color": { "title": "Couleur de la bulle", "body": "Indique la performance. Vert signifie rendement positif, rouge négatif, neutre signifie stable." },
-    "ghost": { "title": "Bulles fantômes", "body": "Les éléments de la liste de surveillance apparaissent comme des bulles fantômes. Ils n'affectent pas la valeur du portefeuille ni les analyses." },
-    "stablecoins": { "title": "Stablecoins", "body": "Les stablecoins sont traités comme des cryptos assimilables à du cash et exclus des conseils basés sur la volatilité." }
+    "size": {
+      "title": "Taille de la bulle",
+      "body": "Indique le poids dans le portefeuille. Les plus grandes bulles représentent les plus grandes positions."
+    },
+    "color": {
+      "title": "Couleur de la bulle",
+      "body": "Indique la performance. Vert signifie rendement positif, rouge négatif, neutre signifie stable."
+    },
+    "ghost": {
+      "title": "Bulles fantômes",
+      "body": "Les éléments de la liste de surveillance apparaissent comme des bulles fantômes. Ils n'affectent pas la valeur du portefeuille ni les analyses."
+    },
+    "stablecoins": {
+      "title": "Stablecoins",
+      "body": "Les stablecoins sont traités comme des cryptos assimilables à du cash et exclus des conseils basés sur la volatilité."
+    }
   },
   "pearson": {
     "title": "Corrélation de Pearson",
@@ -283,7 +326,21 @@
       "insufficientData": "Données historiques insuffisantes",
       "calculationFailed": "Impossible de calculer la corrélation",
       "loading": "Chargement des données de corrélation..."
-    }
+    },
+    "glyph_together": "Évoluent ensemble",
+    "glyph_independent": "Indépendants",
+    "glyph_opposite": "Évoluent à l'opposé"
+  },
+  "search": {
+    "portfolio": "Rechercher des positions",
+    "market": "Rechercher actions, ETF, crypto",
+    "stocks": "Actions",
+    "etfs": "ETF",
+    "crypto": "Crypto",
+    "watchlist": "Liste de surveillance",
+    "positions": "Positions",
+    "noResults": "Aucun résultat",
+    "loading": "Recherche..."
   },
   "bubbles": {
     "merge": "Fusionner",
@@ -305,6 +362,29 @@
     "stockCluster": "Groupe Actions",
     "etfCluster": "Groupe ETF",
     "cryptoCluster": "Groupe Crypto",
-    "correlationCluster": "Groupe Corrélation"
+    "correlationCluster": "Groupe Corrélation",
+    "popSelected": "Éclater la sélection",
+    "mergeSelected": "Fusionner la sélection",
+    "customCluster": "Groupe personnalisé",
+    "interactionHint": "Appuyez & glissez pour déplacer · Maintenez pour sélectionner ou grouper",
+    "renameCluster": "Renommer le groupe",
+    "renameClusterDesc": "Entrez un nouveau nom pour ce groupe.",
+    "clusterName": "Nom du groupe",
+    "gaining": "En hausse",
+    "losing": "En baisse"
+  },
+  "watchlist": {
+    "ghost_hint": "Bulles fantômes — elles flottent dans la vue Bulles mais n'affectent jamais la valeur de votre portefeuille."
+  },
+  "chart": {
+    "retry": "Réessayer",
+    "no_data": "Aucune donnée de graphique disponible"
+  },
+  "cluster": {
+    "stats_combined_value": "Valeur combinée",
+    "stats_combined_return": "Rendement combiné",
+    "stats_largest_holding": "Plus grande position",
+    "stats_top_performer": "Meilleure performance",
+    "correlation_link": "Que signifie la corrélation ?"
   }
 }

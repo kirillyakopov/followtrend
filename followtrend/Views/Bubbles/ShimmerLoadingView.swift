@@ -13,7 +13,7 @@ struct ShimmerLoadingView: View {
             Color.bgDeep.ignoresSafeArea()
 
             Circle()
-                .fill(Color.jade.opacity(0.12))
+                .fill(Color.white.opacity(0.06))
                 .frame(width: 140, height: 140)
                 .blur(radius: 40)
                 .scaleEffect(pulse ? 1.15 : 0.85)

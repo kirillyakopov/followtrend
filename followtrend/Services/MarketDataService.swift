@@ -15,26 +15,36 @@
 
 import Foundation
 
-// MARK: - Finnhub response shapes
+// MARK: - Yahoo Finance response shapes
 
-private struct FinnhubCandleResponse: Decodable {
-    let s: String        // "ok" or "no_data"
-    let c: [Double]?     // close prices
-    let o: [Double]?     // open
-    let h: [Double]?     // high
-    let l: [Double]?     // low
-    let v: [Double]?     // volume
-    let t: [Int]?        // unix timestamps
+private struct YahooChartResponse: Decodable {
+    let chart: YahooChart
 }
 
-private struct FinnhubQuoteResponse: Decodable {
-    let c:  Double    // current price
-    let d:  Double?   // change
-    let dp: Double?   // percent change
-    let h:  Double?   // high
-    let l:  Double?   // low
-    let o:  Double?   // open
-    let pc: Double?   // prev close
+private struct YahooChart: Decodable {
+    let result: [YahooResult]?
+}
+
+private struct YahooResult: Decodable {
+    let meta: YahooMeta
+    let timestamp: [Int]?
+    let indicators: YahooIndicators?
+}
+
+private struct YahooMeta: Decodable {
+    let regularMarketPrice: Double?
+}
+
+private struct YahooIndicators: Decodable {
+    let quote: [YahooQuote]?
+}
+
+private struct YahooQuote: Decodable {
+    let close: [Double?]?
+    let open: [Double?]?
+    let high: [Double?]?
+    let low: [Double?]?
+    let volume: [Double?]?
 }
 
 private struct FinnhubSearchResponse: Decodable {
@@ -76,13 +86,18 @@ final class MarketDataService {
     // MARK: - Live quote (current price)
 
     func fetchQuote(symbol: String) async throws -> Double {
-        guard let url = getProxyURL(path: "/api/stock/quote", params: ["symbol": symbol.uppercased()]) else {
+        let yfSymbol = ["BTC", "ETH", "SOL", "ADA", "XRP", "DOGE", "BNB", "AVAX", "DOT", "MATIC"].contains(symbol.uppercased()) ? "\(symbol.uppercased())-USD" : symbol.uppercased()
+        
+        guard let url = URL(string: "https://query1.finance.yahoo.com/v8/finance/chart/\(yfSymbol)?range=1d&interval=1d") else {
             return StockMarketService.shared.getCurrentPrice(for: symbol)
         }
 
         do {
-            let response: FinnhubQuoteResponse = try await net.fetch(url)
-            return response.c > 0 ? response.c : StockMarketService.shared.getCurrentPrice(for: symbol)
+            let response: YahooChartResponse = try await net.fetch(url)
+            if let price = response.chart.result?.first?.meta.regularMarketPrice, price > 0 {
+                return price
+            }
+            return StockMarketService.shared.getCurrentPrice(for: symbol)
         } catch {
             return StockMarketService.shared.getCurrentPrice(for: symbol)
         }
@@ -118,43 +133,46 @@ final class MarketDataService {
             interval = "1wk"
         }
 
-        guard let url = getProxyURL(
-            path: "/api/stock/candles",
-            params: [
-                "symbol": symbol.uppercased(),
-                "range": range,
-                "interval": interval
-            ]
-        ) else { return [] }
+        let yfSymbol = ["BTC", "ETH", "SOL", "ADA", "XRP", "DOGE", "BNB", "AVAX", "DOT", "MATIC"].contains(symbol.uppercased()) ? "\(symbol.uppercased())-USD" : symbol.uppercased()
+
+        guard let url = URL(string: "https://query1.finance.yahoo.com/v8/finance/chart/\(yfSymbol)?range=\(range)&interval=\(interval)") else { return [] }
 
         do {
-            let response: FinnhubCandleResponse = try await net.fetch(url)
-
-            guard response.s == "ok",
-                  let closes = response.c,
-                  let times  = response.t,
-                  !closes.isEmpty else {
-                return [] // Market closed or no data
+            let response: YahooChartResponse = try await net.fetch(url)
+            
+            guard let result = response.chart.result?.first,
+                  let timestamps = result.timestamp,
+                  let quote = result.indicators?.quote?.first else {
+                return []
             }
+            
+            let closes = quote.close ?? []
+            let opens = quote.open ?? []
+            let highs = quote.high ?? []
+            let lows = quote.low ?? []
+            let volumes = quote.volume ?? []
 
-            let points: [ChartPoint] = zip(times, closes).enumerated().map { (i, pair) in
-                let (ts, close) = pair
-                return ChartPoint(
-                    timestamp: Date(timeIntervalSince1970: Double(ts)),
+            var points: [ChartPoint] = []
+            
+            for i in 0..<min(timestamps.count, closes.count) {
+                guard let close = closes[i] else { continue }
+                
+                let pt = ChartPoint(
+                    timestamp: Date(timeIntervalSince1970: Double(timestamps[i])),
                     close: close,
-                    open:   response.o?[safe: i],
-                    high:   response.h?[safe: i],
-                    low:    response.l?[safe: i],
-                    volume: response.v?[safe: i]
+                    open: opens[safe: i] ?? nil,
+                    high: highs[safe: i] ?? nil,
+                    low: lows[safe: i] ?? nil,
+                    volume: volumes[safe: i] ?? nil
                 )
+                points.append(pt)
             }
 
-            // Cache TTL: 1 min for intraday, 5 min for longer frames
             let ttl: TimeInterval = (timeframe == .oneDay || timeframe == .oneWeek) ? 60 : 300
             cache[cacheKey] = CacheEntry(points: points, expiresAt: Date().addingTimeInterval(ttl))
             return points
         } catch {
-            print("Proxy error for \(symbol): \(error)")
+            print("Yahoo error for \(symbol): \(error)")
             return []
         }
     }

@@ -6,7 +6,8 @@
   "tabs": {
     "gesamt": "Gesamt",
     "bubbles": "Bubbles",
-    "anlegen": "Anlegen"
+    "anlegen": "Anlegen",
+    "profile": "Profil"
   },
   "portfolio": {
     "brokerage": "Brokerage",
@@ -24,7 +25,19 @@
     "stueck": "Stück",
     "loeschen": "Löschen",
     "watchlist": "Watchlist",
-    "risk_correlation": "RISIKO & KORRELATION"
+    "risk_correlation": "RISIKO & KORRELATION",
+    "net_worth": "NETTOVERMÖGEN",
+    "all_time_return": "GESAMTRENDITE",
+    "allocation": "ALLOKATION",
+    "top_holdings": "TOP-POSITIONEN",
+    "the_map": "Die Karte",
+    "holdings_title": "POSITIONEN",
+    "add_position_title": "Position hinzufügen",
+    "new_entry_title": "NEUER EINTRAG",
+    "your_profile_title": "Dein Profil",
+    "account_title": "KONTO",
+    "row_hint": "Zeile wischen für Aktionen · Tippen für Details",
+    "live": "Live"
   },
   "sort": {
     "title": "POSITIONEN SORTIEREN",
@@ -62,8 +75,7 @@
   "einzel": {
     "depot": "DEPOT",
     "rendite": "RENDITE",
-    "live": "Live",
-    "tippe_ziehen": "Tippe · Ziehen zum Bewegen"
+    "live": "Live"
   },
   "detail": {
     "meine_position": "MEINE POSITION",
@@ -91,7 +103,9 @@
     "notes_placeholder": "Notizen hier eingeben...",
     "tags_placeholder": "Tags durch Komma getrennt eingeben...",
     "insufficient_correlation_data": "Ungenügend historische Daten für Korrelationsanalyse",
-    "pearson_correlation": "Pearson-Korrelation"
+    "pearson_correlation": "Pearson-Korrelation",
+    "watchlist_ghost_info": "Auf deiner Watchlist — beeinflusst den Portfolio-Wert nicht.",
+    "today_suffix": "heute"
   },
   "add": {
     "wertpapier_suchen": "Wertpapier suchen",
@@ -106,7 +120,10 @@
     "uebernehmen": "Übernehmen",
     "portfolio": "Depot",
     "watchlist": "Watchlist",
-    "zu_watchlist_hinzufuegen": "Zu Watchlist hinzufügen"
+    "zu_watchlist_hinzufuegen": "Zu Watchlist hinzufügen",
+    "suggested": "VORSCHLÄGE",
+    "owned": "IM DEPOT",
+    "approx_at_current_price": "≈ %@ zum aktuellen Kurs"
   },
   "profile": {
     "profil": "Profil",
@@ -116,10 +133,17 @@
     "apple_id_verknuepft": "Apple ID verknüpft",
     "deine_daten_sicher": "Deine Daten sind sicher gespeichert",
     "daten_apple_verknuepft": "Deine Daten werden sicher mit deiner Apple ID verknüpft.",
-    "sprache": "Sprache"
+    "sprache": "Sprache",
+    "general": "Allgemein",
+    "about": "Über",
+    "version": "Version",
+    "currency": "Währung",
+    "price_source": "Kursquelle"
   },
   "common": {
-    "fertig": "Fertig"
+    "fertig": "Fertig",
+    "abbrechen": "Abbrechen",
+    "speichern": "Speichern"
   },
   "alerts": {
     "title": "Preisalarm",
@@ -165,7 +189,9 @@
   "advice": {
     "noActivePositions": "Keine Positionen",
     "noActivePositionsBody": "Füge aktive Positionen hinzu, um Portfolio-Coaching zu erhalten.",
-    "allocation": { "title": "PORTFOLIO-ALLOKATION" },
+    "allocation": {
+      "title": "PORTFOLIO-ALLOKATION"
+    },
     "largest": {
       "title": "GRÖSSTE POSITION",
       "warning": "%@ macht %@%% deines Portfolios aus. Reduziere eventuell die Konzentration.",
@@ -182,10 +208,15 @@
       "emptyTitle": "Ausgewogener Mix",
       "criticalTitle": "Braucht Aufmerksamkeit",
       "warningTitle": "Einen Blick wert",
-      "infoTitle": "Wirkt ausgewogen"
+      "infoTitle": "Wirkt ausgewogen",
+      "reviewChip": "Vorschlag ansehen"
     },
-    "diversification": { "title": "DIVERSIFIKATIONS-TIPP" },
-    "concentration": { "title": "KONZENTRATIONS-HINWEIS" },
+    "diversification": {
+      "title": "DIVERSIFIKATIONS-TIPP"
+    },
+    "concentration": {
+      "title": "KONZENTRATIONS-HINWEIS"
+    },
     "stablecoin": {
       "title": "CASH-ÄHNLICHE KRYPTO",
       "noneTitle": "Keine Stablecoins",
@@ -202,10 +233,22 @@
   },
   "bubbleInfo": {
     "title": "Bubble-Intelligenz",
-    "size": { "title": "Bubble-Größe", "body": "Zeigt das Portfolio-Gewicht. Größere Bubbles stehen für größere Positionen." },
-    "color": { "title": "Bubble-Farbe", "body": "Zeigt die Performance. Grün bedeutet positive Rendite, Rot negative Rendite, neutral bedeutet flach." },
-    "ghost": { "title": "Ghost-Bubbles", "body": "Watchlist-Einträge erscheinen als Ghost-Bubbles. Sie beeinflussen Portfolio-Wert und Analysen nicht." },
-    "stablecoins": { "title": "Stablecoins", "body": "Stablecoins werden als cash-ähnliche Krypto behandelt und von volatilitätsbasierten Hinweisen ausgeschlossen." }
+    "size": {
+      "title": "Bubble-Größe",
+      "body": "Zeigt das Portfolio-Gewicht. Größere Bubbles stehen für größere Positionen."
+    },
+    "color": {
+      "title": "Bubble-Farbe",
+      "body": "Zeigt die Performance. Grün bedeutet positive Rendite, Rot negative Rendite, neutral bedeutet flach."
+    },
+    "ghost": {
+      "title": "Ghost-Bubbles",
+      "body": "Watchlist-Einträge erscheinen als Ghost-Bubbles. Sie beeinflussen Portfolio-Wert und Analysen nicht."
+    },
+    "stablecoins": {
+      "title": "Stablecoins",
+      "body": "Stablecoins werden als cash-ähnliche Krypto behandelt und von volatilitätsbasierten Hinweisen ausgeschlossen."
+    }
   },
   "pearson": {
     "title": "Pearson-Korrelation",
@@ -282,7 +325,10 @@
       "insufficientData": "Ungenügend historische Daten",
       "calculationFailed": "Korrelation kann nicht berechnet werden",
       "loading": "Korrelationsdaten werden geladen..."
-    }
+    },
+    "glyph_together": "Bewegen sich gemeinsam",
+    "glyph_independent": "Unabhängig",
+    "glyph_opposite": "Bewegen sich gegenläufig"
   },
   "search": {
     "portfolio": "Positionen suchen",
@@ -315,6 +361,29 @@
     "stockCluster": "Aktien-Cluster",
     "etfCluster": "ETF-Cluster",
     "cryptoCluster": "Krypto-Cluster",
-    "correlationCluster": "Korrelations-Cluster"
+    "correlationCluster": "Korrelations-Cluster",
+    "popSelected": "Auswahl platzen lassen",
+    "mergeSelected": "Auswahl zusammenführen",
+    "customCluster": "Eigenes Cluster",
+    "interactionHint": "Tippen & ziehen zum Bewegen · Halten zum Auswählen oder Clustern",
+    "renameCluster": "Cluster umbenennen",
+    "renameClusterDesc": "Geben Sie einen neuen Namen für dieses Cluster ein.",
+    "clusterName": "Cluster-Name",
+    "gaining": "Im Plus",
+    "losing": "Im Minus"
+  },
+  "watchlist": {
+    "ghost_hint": "Ghost-Bubbles — sie schweben in der Bubble-Ansicht, beeinflussen deinen Portfolio-Wert aber nie."
+  },
+  "chart": {
+    "retry": "Erneut versuchen",
+    "no_data": "Keine Chartdaten verfügbar"
+  },
+  "cluster": {
+    "stats_combined_value": "Kombinierter Wert",
+    "stats_combined_return": "Kombinierte Rendite",
+    "stats_largest_holding": "Größte Position",
+    "stats_top_performer": "Top-Performer",
+    "correlation_link": "Was bedeutet Korrelation?"
   }
 }

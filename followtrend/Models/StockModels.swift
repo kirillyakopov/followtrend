@@ -205,12 +205,13 @@ enum SpawnState: String, Codable {
 
 struct BubbleParticle: Identifiable, Equatable {
     let id: String          // matches Investment.id or BubbleCluster.id
-    let symbol: String
+    var symbol: String
     var gain: Double
     var radius: CGFloat
     var position: CGPoint
     var velocity: CGVector
     var isWatchlist: Bool
+    var name: String? = nil
     var spawnState: SpawnState = .active
     var spawnProgress: Double = 1.0
     
@@ -249,4 +250,5 @@ struct BubbleRenderSnapshot: Equatable {
     var particles: [BubbleParticle] = []
     var connections: [BubbleConnection] = []
     var clusters: [BubbleCluster] = []
+    var baseParticles: [BubbleParticle] = []
 }

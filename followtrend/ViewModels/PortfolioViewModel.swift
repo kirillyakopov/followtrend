@@ -26,7 +26,7 @@ final class PortfolioViewModel: ObservableObject {
 
     /// Pairwise Pearson correlation coefficients — updated after every price refresh.
     @Published var correlationMatrix: [AssetPair: Double] = [:]
-    
+
     @Published var portfolioCorrelation: Double? = nil
     @Published var correlationState: CorrelationState = .loading
     @Published private(set) var assetAllocation: [AssetAllocationSlice] = []
@@ -47,14 +47,40 @@ final class PortfolioViewModel: ObservableObject {
     var canUnpop: Bool { !poppedBubbles.isEmpty }
 
     @Published var bubbleClusters: [BubbleCluster] = []
-    @Published var mergeSuggestions: [MergeSuggestion] = []
     @Published var bubbleRenderSnapshot = BubbleRenderSnapshot()
     @Published var expandedClusterID: UUID? = nil
-    
+
     // Multi-Select Mode state
     @Published var isBubbleSelectionModeActive: Bool = false
     @Published var selectedBubbleSymbols: Set<String> = []
-    
+
+    // MARK: Cached derived state (pre-formatted for views)
+
+    /// Pre-sorted, pre-formatted active positions. Views read this directly — zero sorting/formatting in body.
+    @Published private(set) var sortedActivePositions: [PositionRowModel] = []
+
+    /// Pre-formatted watchlist rows.
+    @Published private(set) var watchlistRows: [WatchlistRowModel] = []
+
+    /// Snapshot for advice cards — only rebuilt when analytics change, not on every price tick.
+    @Published private(set) var adviceSnapshot: AdviceCardsSnapshot = AdviceCardsSnapshot(
+        assetAllocation: [], rebalancingSuggestions: [], correlationMatrix: [:],
+        activeInvestmentIDs: [], strongestPairSymbolA: nil, strongestPairSymbolB: nil,
+        strongestPairValue: nil, largestSymbol: nil, largestWeight: 0,
+        stablecoinPercentage: 0, hasStablecoins: false
+    )
+
+    /// Incremented only when investments are added/removed — used by chart to avoid reloading on price ticks.
+    @Published private(set) var chartTrigger: Int = 0
+
+    /// Sort mode lives in ViewModel so the sorted array is always ready.
+    @Published var positionSortMode: PositionSortMode = .sinceBuy {
+        didSet {
+            UserDefaults.standard.set(positionSortMode.rawValue, forKey: "portfolio.positionSortMode")
+            rebuildRowModels()
+        }
+    }
+
     private var lastCanvasSize: CGSize = .zero
 
     // MARK: Dependencies
@@ -69,15 +95,22 @@ final class PortfolioViewModel: ObservableObject {
     // MARK: Init
 
     init() {
+        // Restore persisted sort mode
+        if let stored = UserDefaults.standard.string(forKey: "portfolio.positionSortMode"),
+           let mode = PositionSortMode(rawValue: stored) {
+            positionSortMode = mode
+        }
+
         loadDefaultInvestments()
         loadPriceSourceMode()
 
-        // Re-calculate whenever market prices update
+        // Re-calculate after price updates — DEBOUNCED so that a full batch refresh
+        // (N symbols) triggers recalculate only once after all prices land.
         marketService.$liveStocks
-            .receive(on: RunLoop.main)
+            .debounce(for: .milliseconds(350), scheduler: RunLoop.main)
             .sink { [weak self] _ in self?.recalculate() }
             .store(in: &cancellables)
-            
+
         // Re-calculate whenever selected currency changes
         CurrencyService.shared.$selectedCurrency
             .receive(on: RunLoop.main)
@@ -118,6 +151,10 @@ final class PortfolioViewModel: ObservableObject {
             PortfolioStorageService.shared.saveInvestments(fetched)
         }
         investments = fetched
+        
+        // Debug injection hook (toggle isEnabled in DebugDataInjector.swift)
+        DebugDataInjector.injectDummyAssets(into: self)
+        
         loadBubbleClusters()
         recalculate()
     }
@@ -199,28 +236,36 @@ final class PortfolioViewModel: ObservableObject {
 
     func refreshLivePrices() async {
         isPriceFetching = true
-        await withTaskGroup(of: Void.self) { group in
-            for inv in investments {
+        let invSnapshot = investments   // capture value-type copy for safe concurrent access
+
+        // Fetch all prices concurrently, collect into a local dict
+        var collectedPrices: [String: Double] = [:]
+        await withTaskGroup(of: (String, Double?).self) { group in
+            for inv in invSnapshot {
                 let sym    = inv.symbol
                 let coinId = inv.coinId
-                group.addTask { [weak self] in
-                    guard let self else { return }
+                group.addTask {
                     do {
                         let price: Double
                         if let cid = coinId {
-                            price = try await self.cryptoService.currentPrice(coinId: cid)
+                            price = try await CryptoDataService.shared.currentPrice(coinId: cid)
                         } else {
                             price = try await MarketDataService.shared.fetchQuote(symbol: sym)
                         }
-                        await MainActor.run {
-                            self.marketService.updatePrice(symbol: sym, price: price)
-                        }
+                        return (sym, price)
                     } catch {
-                        // Silently retain mock price
+                        return (sym, nil)
                     }
                 }
             }
+            for await (sym, price) in group {
+                if let p = price { collectedPrices[sym] = p }
+            }
         }
+
+        // Apply ALL prices in one shot → ONE Combine publish → ONE debounced recalculate
+        marketService.applyBatchUpdate(collectedPrices)
+
         recalculate()
         isPriceFetching = false
 
@@ -259,7 +304,6 @@ final class PortfolioViewModel: ObservableObject {
                 self.correlationState = .insufficientData
             }
             self.refreshCachedPortfolioAnalytics()
-            self.recalculateSuggestions()
         }
     }
 
@@ -267,7 +311,7 @@ final class PortfolioViewModel: ObservableObject {
 
     func recalculate() {
         var value = cashBalance
-        var cost  = costBalanceHelper() // wait, let's look at the original code
+        var cost  = cashBalance
 
         let cs = CurrencyService.shared
 
@@ -276,7 +320,7 @@ final class PortfolioViewModel: ObservableObject {
             let price = displayPrice(for: inv)
             let convertedPrice = cs.convertToSelected(value: price, from: inv.nativeCurrency)
             value += inv.shares * convertedPrice
-            
+
             let convertedCost = cs.convertToSelected(value: inv.totalCost, from: inv.nativeCurrency)
             cost += convertedCost
         }
@@ -288,12 +332,14 @@ final class PortfolioViewModel: ObservableObject {
         absoluteGain    = holdingsVal - holdingsCost
         percentageGain  = holdingsCost > 0 ? (absoluteGain / holdingsCost) * 100 : 0
         refreshCachedPortfolioAnalytics()
-        
+
         syncToWidget()
-        
+
         validateClusters()
-        recalculateSuggestions()
         rebuildBubbleSnapshot()
+
+        // Rebuild cached row models for list views
+        rebuildRowModels()
     }
 
     private func refreshCachedPortfolioAnalytics() {
@@ -465,6 +511,7 @@ final class PortfolioViewModel: ObservableObject {
                 if brokerAdjustment != nil {
                     applyBrokerAdjustment(brokerAdjustment, to: &investments[idx])
                 }
+                chartTrigger += 1   // signal chart to reload (position merged)
             }
         } else {
             var inv = Investment(
@@ -483,6 +530,7 @@ final class PortfolioViewModel: ObservableObject {
             withAnimation(.easeInOut(duration: 0.35)) {
                 investments.append(inv)
             }
+            chartTrigger += 1   // signal chart to reload (new symbol added)
         }
 
         // Register with StockMarketService at buy price (will be overwritten on next price refresh)
@@ -534,7 +582,8 @@ final class PortfolioViewModel: ObservableObject {
                 investments[watchListIdx].isWatchlist = false
             }
         }
-        
+        chartTrigger += 1   // signal chart to reload (watchlist item became active position)
+
         refreshDefaultPriceSourceModeIfNeeded()
         recalculate()
         
@@ -557,6 +606,7 @@ final class PortfolioViewModel: ObservableObject {
         withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
             investments.removeAll(where: { $0.id == id })
         }
+        chartTrigger += 1   // signal chart to reload (position removed)
         recalculate()
 
         // Auto-save
@@ -585,6 +635,7 @@ final class PortfolioViewModel: ObservableObject {
         withAnimation(.spring(response: 0.45, dampingFraction: 0.72)) {
             investments.append(restored)
         }
+        chartTrigger += 1   // signal chart to reload (position restored)
 
         // Re-register the symbol at the last known buy price
         marketService.registerSymbol(
@@ -640,7 +691,8 @@ final class PortfolioViewModel: ObservableObject {
                 applyBrokerAdjustment(brokerAdjustment, to: &investments[idx])
             }
         }
-        
+        chartTrigger += 1   // signal chart to reload (position edited)
+
         recalculate()
         
         // Auto-save
@@ -794,7 +846,8 @@ final class PortfolioViewModel: ObservableObject {
                         dx: CGFloat.random(in: -0.3...0.3),
                         dy: CGFloat.random(in: -0.3...0.3)
                     ),
-                    isWatchlist: true
+                    isWatchlist: true,
+                    name: inv.name
                 )
                 particlesList.append(particle)
             } else {
@@ -818,7 +871,8 @@ final class PortfolioViewModel: ObservableObject {
                         dx: CGFloat.random(in: -0.3...0.3),
                         dy: CGFloat.random(in: -0.3...0.3)
                     ),
-                    isWatchlist: false
+                    isWatchlist: false,
+                    name: inv.name
                 )
                 particlesList.append(particle)
             }
@@ -829,63 +883,107 @@ final class PortfolioViewModel: ObservableObject {
 
     // MARK: - Bubble Merge Operations
 
-    func mergeCluster(symbols: [String], name: String, type: BubbleClusterType) {
-        var pairCorrelations: [Double] = []
-        for i in 0..<symbols.count {
-            for j in (i+1)..<symbols.count {
-                let pair = AssetPair(symbols[i], symbols[j])
-                if let corr = correlationMatrix[pair] {
-                    pairCorrelations.append(corr)
-                }
-            }
+    @MainActor
+    func createClusterFromSelectedSymbols(_ selected: Set<String>) {
+        let validSymbols = selected.filter { symbol in
+            !StablecoinClassifier.isStablecoin(symbol: symbol, name: "")
         }
-        let avgCorr = pairCorrelations.isEmpty ? nil : pairCorrelations.reduce(0, +) / Double(pairCorrelations.count)
 
-        let activeInvestments = investments.filter { !$0.isWatchlist }
-        let totalVal = activeInvestments.reduce(0.0) {
-            $0 + selectedCurrencyValue(for: $1)
+        guard validSymbols.count >= 2 else { return }
+        hapticSuccess()
+
+        var updatedClusters = bubbleClusters.map { cluster in
+            let newSymbols = cluster.symbols.filter { !validSymbols.contains($0) }
+            return BubbleCluster(
+                id: cluster.id,
+                name: cluster.name,
+                symbols: newSymbols,
+                averageCorrelation: cluster.averageCorrelation,
+                combinedWeight: cluster.combinedWeight,
+                type: cluster.type,
+                isExpanded: cluster.isExpanded
+            )
         }
-        let clusterInvestments = investments.filter { !$0.isWatchlist && symbols.contains($0.symbol) }
-        let combinedValue = clusterInvestments.reduce(0.0) {
-            $0 + selectedCurrencyValue(for: $1)
-        }
-        let combinedWeight = totalVal > 0 ? (combinedValue / totalVal) : 0.0
+
+        updatedClusters.removeAll { $0.symbols.count < 2 }
 
         let newCluster = BubbleCluster(
             id: UUID(),
-            name: name,
-            symbols: symbols.sorted(),
-            averageCorrelation: avgCorr,
-            combinedWeight: combinedWeight,
-            type: type,
+            name: AppLanguageManager.shared.t("bubbles.customCluster"),
+            symbols: Array(validSymbols).sorted(),
+            averageCorrelation: nil,
+            combinedWeight: 0,
+            type: .correlation,
             isExpanded: false
         )
 
+        updatedClusters.append(newCluster)
+
         withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-            var updated = bubbleClusters
-            updated.append(newCluster)
-            bubbleClusters = updated
+            bubbleClusters = updatedClusters
+            selectedBubbleSymbols.removeAll()
+            isBubbleSelectionModeActive = false
+            expandedClusterID = nil
         }
 
         saveBubbleClusters()
-        recalculateSuggestions()
         rebuildBubbleSnapshot()
     }
 
-    func expandCluster(id: UUID) {
+    func dissolveCluster(id: UUID) {
         withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
             var updated = bubbleClusters
             if let idx = updated.firstIndex(where: { $0.id == id }) {
                 updated.remove(at: idx)
                 bubbleClusters = updated
             }
-        }
-        if expandedClusterID == id {
-            expandedClusterID = nil
+            if expandedClusterID == id {
+                expandedClusterID = nil
+            }
         }
         saveBubbleClusters()
-        recalculateSuggestions()
         rebuildBubbleSnapshot()
+    }
+
+    func renameCluster(id: UUID, newName: String) {
+        if let idx = bubbleClusters.firstIndex(where: { $0.id == id }) {
+            let old = bubbleClusters[idx]
+            bubbleClusters[idx] = BubbleCluster(
+                id: old.id,
+                name: newName,
+                symbols: old.symbols,
+                averageCorrelation: old.averageCorrelation,
+                combinedWeight: old.combinedWeight,
+                type: old.type,
+                isExpanded: old.isExpanded
+            )
+            saveBubbleClusters()
+            rebuildBubbleSnapshot()
+        }
+    }
+
+    func removeSymbolFromCluster(id: UUID, symbol: String) {
+        if let idx = bubbleClusters.firstIndex(where: { $0.id == id }) {
+            var updatedSymbols = bubbleClusters[idx].symbols
+            updatedSymbols.removeAll { $0 == symbol }
+            
+            if updatedSymbols.count < 2 {
+                dissolveCluster(id: id)
+            } else {
+                let old = bubbleClusters[idx]
+                bubbleClusters[idx] = BubbleCluster(
+                    id: old.id,
+                    name: old.name,
+                    symbols: updatedSymbols,
+                    averageCorrelation: old.averageCorrelation,
+                    combinedWeight: old.combinedWeight,
+                    type: old.type,
+                    isExpanded: old.isExpanded
+                )
+                saveBubbleClusters()
+                rebuildBubbleSnapshot()
+            }
+        }
     }
 
     // MARK: - Bubble Multi-Select Operations
@@ -912,7 +1010,7 @@ final class PortfolioViewModel: ObservableObject {
     }
 
     func popSelectedBubbles() {
-        haptic(.medium)
+        haptic(.rigid)
         // Find investments matching selected symbols
         let toDelete = investments.filter { selectedBubbleSymbols.contains($0.symbol) && !$0.isWatchlist }
         
@@ -926,19 +1024,10 @@ final class PortfolioViewModel: ObservableObject {
             isBubbleSelectionModeActive = false
             selectedBubbleSymbols.removeAll()
         }
+        chartTrigger += 1   // signal chart to reload (positions removed)
         recalculate()
         PortfolioStorageService.shared.saveInvestments(investments)
         Task { await triggerCorrelationUpdate() }
-    }
-
-    func mergeSelectedBubbles(name: String, type: BubbleClusterType) {
-        let symbols = Array(selectedBubbleSymbols)
-        guard symbols.count >= 2 else { return }
-        mergeCluster(symbols: symbols, name: name, type: type)
-        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-            isBubbleSelectionModeActive = false
-            selectedBubbleSymbols.removeAll()
-        }
     }
 
     func validateClusters() {
@@ -982,7 +1071,6 @@ final class PortfolioViewModel: ObservableObject {
 
     func prepareBubblesIfNeeded() {
         validateClusters()
-        recalculateSuggestions()
         rebuildBubbleSnapshot()
     }
 
@@ -1015,7 +1103,8 @@ final class PortfolioViewModel: ObservableObject {
                         dx: CGFloat.random(in: -0.3...0.3),
                         dy: CGFloat.random(in: -0.3...0.3)
                     ),
-                    isWatchlist: true
+                    isWatchlist: true,
+                    name: inv.name
                 )
                 baseList.append(particle)
             } else {
@@ -1036,7 +1125,8 @@ final class PortfolioViewModel: ObservableObject {
                         dx: CGFloat.random(in: -0.3...0.3),
                         dy: CGFloat.random(in: -0.3...0.3)
                     ),
-                    isWatchlist: false
+                    isWatchlist: false,
+                    name: inv.name
                 )
                 baseList.append(particle)
             }
@@ -1147,123 +1237,135 @@ final class PortfolioViewModel: ObservableObject {
         self.bubbleRenderSnapshot = BubbleRenderSnapshot(
             particles: visible,
             connections: connections,
-            clusters: validClusters
+            clusters: validClusters,
+            baseParticles: base
         )
     }
 
-    func recalculateSuggestions() {
-        let eligible = investments.filter {
-            !$0.isWatchlist &&
-            !StablecoinClassifier.isStablecoin(symbol: $0.symbol, name: $0.name) &&
-            marketService.getCurrentPrice(for: $0.symbol) > 0
+
+
+    // MARK: - Cached Row Model Rebuilding
+
+    func rebuildRowModels() {
+        let cs = CurrencyService.shared
+        let active = investments.filter { !$0.isWatchlist }
+        let watchlist = investments.filter { $0.isWatchlist }
+
+        // --- Active positions ---
+        let totalActiveValue = active.reduce(0.0) { $0 + selectedCurrencyValue(for: $1) }
+
+        let built: [PositionRowModel] = active.map { inv in
+            let val  = selectedCurrencyValue(for: inv)
+            let cost = selectedCurrencyCost(for: inv)
+            let gain = val - cost
+            let gainPct = cost > 0 ? (gain / cost) * 100 : 0.0
+            let dayChangePct = marketService.getStockInfo(for: inv.symbol)?.dayChangePercent ?? 0.0
+            let returnSinceBuy = val - cost
+
+            let sharesText = String(format: "%.4g", inv.shares)
+            let avgPriceText = cs.format(value: inv.buyPrice, from: inv.nativeCurrency)
+            let sharesSubtitle = "\(sharesText) \(AppLanguageManager.shared.t("portfolio.stueck"))  ·  Ø \(avgPriceText)"
+            let valueText = cs.formatConverted(val)
+            let gainText = String(format: "%@%.1f%%", gainPct >= 0 ? "+" : "", gainPct)
+
+            return PositionRowModel(
+                id:             inv.id,
+                investmentID:   inv.id,
+                symbol:         inv.symbol,
+                name:           inv.name,
+                sharesSubtitle: sharesSubtitle,
+                valueText:      valueText,
+                gainPercentText: gainText,
+                isPositive:     gainPct >= 0,
+                badgeColorIndex: abs(inv.symbol.hashValue) % 6,
+                gainPercent:    gainPct,
+                totalValue:     val,
+                returnSinceBuy: returnSinceBuy,
+                dayChangePercent: dayChangePct,
+                coinId:         inv.coinId
+            )
         }
 
-        guard eligible.count >= 2 else {
-            self.mergeSuggestions = []
-            return
+        sortedActivePositions = sortRows(built)
+
+        // --- Watchlist ---
+        watchlistRows = watchlist.map { inv in
+            let price    = marketService.getCurrentPrice(for: inv.symbol)
+            let gainPct  = marketService.getStockInfo(for: inv.symbol)?.dayChangePercent ?? 0.0
+            let priceText = cs.format(value: price, from: inv.nativeCurrency)
+            let changeText = String(format: "%@%.1f%%", gainPct >= 0 ? "+" : "", gainPct)
+
+            return WatchlistRowModel(
+                id:                inv.id,
+                investmentID:      inv.id,
+                symbol:            inv.symbol,
+                name:              inv.name,
+                nativeCurrency:    inv.nativeCurrency,
+                priceText:         priceText,
+                dayChangeText:     changeText,
+                dayChangePositive: gainPct >= 0,
+                badgeColorIndex:   abs(inv.symbol.hashValue) % 6,
+                coinId:            inv.coinId
+            )
         }
 
-        let mergedSymbols = Set(bubbleClusters.flatMap { $0.symbols })
-        var suggestions: [MergeSuggestion] = []
+        // --- Advice snapshot (rebuilt on analytics + price changes) ---
+        let strongestPair = correlationMatrix
+            .filter { abs($0.value) > 0.4 }
+            .max { abs($0.value) < abs($1.value) }
 
-        let activeInvestments = investments.filter { !$0.isWatchlist }
-        let totalVal = activeInvestments.reduce(0.0) {
-            $0 + selectedCurrencyValue(for: $1)
+        let largest = active
+            .map { ($0, selectedCurrencyValue(for: $0)) }
+            .max { $0.1 < $1.1 }
+        let largestWeight = totalActiveValue > 0 ? ((largest?.1 ?? 0) / totalActiveValue * 100) : 0
+
+        let stablecoinSlice = assetAllocation.first { $0.category == .stablecoins }
+
+        let newSnapshot = AdviceCardsSnapshot(
+            assetAllocation:       assetAllocation,
+            rebalancingSuggestions: rebalancingSuggestions,
+            correlationMatrix:     correlationMatrix,
+            activeInvestmentIDs:   active.map(\.id),
+            strongestPairSymbolA:  strongestPair?.key.symbolA,
+            strongestPairSymbolB:  strongestPair?.key.symbolB,
+            strongestPairValue:    strongestPair?.value,
+            largestSymbol:         largest?.0.symbol,
+            largestWeight:         largestWeight,
+            stablecoinPercentage:  stablecoinSlice?.percentage ?? 0,
+            hasStablecoins:        stablecoinSlice != nil
+        )
+        // Only publish if something actually changed — prevents advice cards from re-rendering
+        // on every price tick when the analytics values haven't changed.
+        if newSnapshot != adviceSnapshot {
+            adviceSnapshot = newSnapshot
         }
+    }
 
-        // Priority 1: Same sector + strong correlation (Pearson correlation >= 0.70)
-        let sectors = Dictionary(grouping: eligible) { AssetClassifier.sector(for: $0) }
-        for (sectorOpt, sectorAssets) in sectors {
-            guard let sector = sectorOpt, sectorAssets.count >= 2 else { continue }
-
-            var pairCorrelations: [Double] = []
-            let symbols = sectorAssets.map { $0.symbol }
-
-            for i in 0..<symbols.count {
-                for j in (i+1)..<symbols.count {
-                    let pair = AssetPair(symbols[i], symbols[j])
-                    if let corr = correlationMatrix[pair] {
-                        pairCorrelations.append(corr)
-                    }
-                }
-            }
-
-            let avgCorr = pairCorrelations.isEmpty ? 0.0 : pairCorrelations.reduce(0, +) / Double(pairCorrelations.count)
-            if avgCorr >= 0.70 {
-                let unmergedSymbols = symbols.filter { !mergedSymbols.contains($0) }
-                if unmergedSymbols.count >= 2 {
-                    let combinedValue = sectorAssets.reduce(0.0) { $0 + selectedCurrencyValue(for: $1) }
-                    let combinedWeight = totalVal > 0 ? (combinedValue / totalVal) : 0.0
-                    let sectorName = AppLanguageManager.shared.t(sector.localizationKey)
-
-                    suggestions.append(MergeSuggestion(
-                        name: sectorName,
-                        symbols: unmergedSymbols.sorted(),
-                        averageCorrelation: avgCorr,
-                        combinedWeight: combinedWeight,
-                        type: .sector,
-                        sector: sector,
-                        assetClass: nil
-                    ))
-                }
-            }
-        }
-
-        // Priority 2: Strong correlation only (Pearson correlation >= 0.70, mixed sectors)
-        var processedPairs = Set<AssetPair>()
-        for i in 0..<eligible.count {
-            for j in (i+1)..<eligible.count {
-                let assetA = eligible[i]
-                let assetB = eligible[j]
-                let pair = AssetPair(assetA.symbol, assetB.symbol)
-                guard !processedPairs.contains(pair) else { continue }
-
-                if let corr = correlationMatrix[pair], corr >= 0.70 {
-                    if !mergedSymbols.contains(assetA.symbol) && !mergedSymbols.contains(assetB.symbol) {
-                        processedPairs.insert(pair)
-
-                        let classA = AssetClassifier.category(for: assetA)
-                        let classB = AssetClassifier.category(for: assetB)
-
-                        let clusterType: BubbleClusterType
-                        let clusterName: String
-                        let assetClass: AssetCategory?
-
-                        if classA == classB {
-                            clusterType = .assetClass
-                            assetClass = classA
-                            clusterName = AppLanguageManager.shared.t("bubbles.\(classA.rawValue)Cluster")
-                        } else {
-                            clusterType = .correlation
-                            assetClass = nil
-                            clusterName = AppLanguageManager.shared.t("bubbles.correlationCluster")
-                        }
-
-                        let valA = selectedCurrencyValue(for: assetA)
-                        let valB = selectedCurrencyValue(for: assetB)
-                        let combinedWeight = totalVal > 0 ? ((valA + valB) / totalVal) : 0.0
-
-                        suggestions.append(MergeSuggestion(
-                            name: clusterName,
-                            symbols: [assetA.symbol, assetB.symbol].sorted(),
-                            averageCorrelation: corr,
-                            combinedWeight: combinedWeight,
-                            type: clusterType,
-                            sector: nil,
-                            assetClass: assetClass
-                        ))
-                    }
-                }
-            }
-        }
-
-        self.mergeSuggestions = suggestions.filter { sugg in
-            !suggestions.contains { other in
-                other.type == .sector && sugg.type != .sector && Set(sugg.symbols).isSubset(of: Set(other.symbols))
+    private func sortRows(_ rows: [PositionRowModel]) -> [PositionRowModel] {
+        rows.sorted { lhs, rhs in
+            switch positionSortMode {
+            case .sinceBuy:
+                let l = lhs.returnSinceBuy, r = rhs.returnSinceBuy
+                return l == r ? lhs.symbol < rhs.symbol : l > r
+            case .bestPerformer:
+                return lhs.gainPercent == rhs.gainPercent
+                    ? lhs.symbol < rhs.symbol : lhs.gainPercent > rhs.gainPercent
+            case .worstPerformer:
+                return lhs.gainPercent == rhs.gainPercent
+                    ? lhs.symbol < rhs.symbol : lhs.gainPercent < rhs.gainPercent
+            case .today:
+                return lhs.dayChangePercent == rhs.dayChangePercent
+                    ? lhs.symbol < rhs.symbol : lhs.dayChangePercent > rhs.dayChangePercent
+            case .totalValue:
+                return lhs.totalValue == rhs.totalValue
+                    ? lhs.symbol < rhs.symbol : lhs.totalValue > rhs.totalValue
+            case .name:
+                return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
             }
         }
     }
 }
+
 
 // MARK: - Merge Suggestion Model
 

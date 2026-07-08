@@ -44,13 +44,39 @@ final class StockMarketService: ObservableObject {
                 symbol:      existing.symbol,
                 name:        existing.name,
                 currentPrice: price,
-                prevPrice:   existing.currentPrice   // old current becomes prev
+                prevPrice:   existing.currentPrice
             )
             liveStocks[key] = existing
         } else {
-            // Unknown symbol — register it with synthetic history
             registerSymbol(symbol: key, name: key, price: price)
         }
+    }
+
+    /// Apply many price updates at once — triggers only ONE Combine publish
+    /// instead of one per symbol. Use this after completing a full refresh cycle.
+    func applyBatchUpdate(_ updates: [String: Double]) {
+        guard !updates.isEmpty else { return }
+        var updated = liveStocks
+        for (symbol, price) in updates where price > 0 {
+            let key = symbol.uppercased()
+            if var existing = updated[key] {
+                existing = StockAsset(
+                    symbol:       existing.symbol,
+                    name:         existing.name,
+                    currentPrice: price,
+                    prevPrice:    existing.currentPrice
+                )
+                updated[key] = existing
+            } else {
+                updated[key] = StockAsset(
+                    symbol:       key,
+                    name:         key,
+                    currentPrice: price,
+                    prevPrice:    price * 0.99
+                )
+            }
+        }
+        liveStocks = updated   // single @Published assignment → one Combine event
     }
 
     /// Register a symbol not in the default catalogue (e.g. user-added stock)

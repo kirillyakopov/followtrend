@@ -2,6 +2,9 @@
 //  BubbleInfoSheet.swift
 //  followtrend
 //
+//  Bubble legend sheet — opaque cards, single mint accent,
+//  dashed-circle glyph for ghost (watchlist) bubbles.
+//
 
 import SwiftUI
 
@@ -10,37 +13,40 @@ struct BubbleInfoSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Color.bgDeep.ignoresSafeArea()
-                RadialGradient(
-                    colors: [Color.jade.opacity(0.18), Color.clear],
-                    center: .topTrailing,
-                    startRadius: 20,
-                    endRadius: 360
-                )
-                .ignoresSafeArea()
+        VStack(spacing: 0) {
+            // Header: title 22/800 + close
+            HStack(alignment: .top) {
+                Text(lm.t("bubbleInfo.title"))
+                    .font(AppTypography.sheetTitle)
+                    .tracking(-0.4)
+                    .foregroundStyle(Color.textPrimary)
 
-                ScrollView(showsIndicators: false) {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 156), spacing: 12, alignment: .top)], alignment: .center, spacing: 12) {
-                        ForEach(infoItems) { item in
-                            infoCard(item)
-                        }
-                    }
-                    .padding(20)
-                    .padding(.top, 4)
+                Spacer(minLength: 12)
+
+                Button {
+                    haptic(.light)
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Color.labelSecondary)
+                        .frame(width: 34, height: 34)
                 }
+                .buttonStyle(.glass)
+                .buttonBorderShape(.circle)
             }
-            .navigationTitle(lm.t("bubbleInfo.title"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { dismiss() } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 22))
-                            .foregroundStyle(Color.textMuted)
+            .padding(.horizontal, 20)
+            .padding(.top, 22)
+            .padding(.bottom, 14)
+
+            ScrollView(showsIndicators: false) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 156), spacing: 10, alignment: .top)], alignment: .center, spacing: 10) {
+                    ForEach(infoItems) { item in
+                        infoCard(item)
                     }
                 }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 30)
             }
         }
         .preferredColorScheme(.dark)
@@ -48,11 +54,11 @@ struct BubbleInfoSheet: View {
 
     private var infoItems: [BubbleInfoItem] {
         [
-            BubbleInfoItem(icon: "circle.grid.cross", title: lm.t("bubbleInfo.size.title"), body: lm.t("bubbleInfo.size.body"), color: Color.jade),
-            BubbleInfoItem(icon: "paintpalette.fill", title: lm.t("bubbleInfo.color.title"), body: lm.t("bubbleInfo.color.body"), color: Color(hex: "#5eead4")),
-            BubbleInfoItem(icon: "eye.fill", title: lm.t("bubbleInfo.ghost.title"), body: lm.t("bubbleInfo.ghost.body"), color: Color(hex: "#818cf8")),
-            BubbleInfoItem(icon: "banknote.fill", title: lm.t("bubbleInfo.stablecoins.title"), body: lm.t("bubbleInfo.stablecoins.body"), color: Color(hex: "#86a69a")),
-            BubbleInfoItem(icon: "circle.hexagongrid.fill", title: lm.t("bubbles.mergedBubblesTitle"), body: lm.t("bubbles.mergedBubblesText"), color: Color.jade)
+            BubbleInfoItem(icon: "circle.grid.cross", title: lm.t("bubbleInfo.size.title"), body: lm.t("bubbleInfo.size.body"), color: Color.mintAccent),
+            BubbleInfoItem(icon: "paintpalette.fill", title: lm.t("bubbleInfo.color.title"), body: lm.t("bubbleInfo.color.body"), color: Color.mintAccent),
+            BubbleInfoItem(icon: "eye", title: lm.t("bubbleInfo.ghost.title"), body: lm.t("bubbleInfo.ghost.body"), color: Color.labelSecondary, isGhost: true),
+            BubbleInfoItem(icon: "banknote.fill", title: lm.t("bubbleInfo.stablecoins.title"), body: lm.t("bubbleInfo.stablecoins.body"), color: Color.neutralFlat),
+            BubbleInfoItem(icon: "circle.hexagongrid.fill", title: lm.t("bubbles.mergedBubblesTitle"), body: lm.t("bubbles.mergedBubblesText"), color: Color.mintAccent)
         ]
     }
 
@@ -60,13 +66,22 @@ struct BubbleInfoSheet: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .center, spacing: 10) {
                 ZStack {
-                    Circle()
-                        .fill(item.color.opacity(0.16))
-                    Circle()
-                        .strokeBorder(Color.white.opacity(0.13), lineWidth: 0.7)
-                    Image(systemName: item.icon)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(item.color)
+                    if item.isGhost {
+                        // Ghost-bubble glyph: dashed circle, no fill, no glow
+                        Circle()
+                            .fill(Color.white.opacity(0.025))
+                        Circle()
+                            .strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
+                            .foregroundStyle(Color.labelTertiary)
+                    } else {
+                        Circle()
+                            .fill(item.color.opacity(0.14))
+                        Circle()
+                            .strokeBorder(item.color.opacity(0.26), lineWidth: 0.5)
+                        Image(systemName: item.icon)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(item.color)
+                    }
                 }
                 .frame(width: 34, height: 34)
 
@@ -80,7 +95,7 @@ struct BubbleInfoSheet: View {
 
             Text(item.body)
                 .font(.system(size: 11.5, weight: .medium))
-                .foregroundStyle(Color.textSecondary)
+                .foregroundStyle(Color.labelSecondary)
                 .lineLimit(4)
                 .minimumScaleFactor(0.82)
                 .fixedSize(horizontal: false, vertical: true)
@@ -88,28 +103,21 @@ struct BubbleInfoSheet: View {
         .padding(13)
         .frame(maxWidth: .infinity, minHeight: 132, maxHeight: 132, alignment: .topLeading)
         .background {
-            RoundedRectangle(cornerRadius: 17, style: .continuous)
-                .fill(.ultraThinMaterial)
+            // Opaque surface — cheap to scroll, no blur/shadow on repeating cards
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color.surface)
+                .overlay(alignment: .top) {
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.05), Color.clear],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                    .frame(height: 36)
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                }
                 .overlay(
-                    RoundedRectangle(cornerRadius: 17, style: .continuous)
-                        .fill(Color.bgCard.opacity(0.72))
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5)
                 )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 17, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [item.color.opacity(0.09), Color.white.opacity(0.035), Color.clear],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 17, style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.10), lineWidth: 0.7)
-                )
-                .shadow(color: item.color.opacity(0.10), radius: 14, x: 0, y: 8)
-                .shadow(color: Color.black.opacity(0.20), radius: 12, x: 0, y: 8)
         }
     }
 }
@@ -120,4 +128,5 @@ private struct BubbleInfoItem: Identifiable {
     let title: String
     let body: String
     let color: Color
+    var isGhost: Bool = false
 }

@@ -16,8 +16,9 @@ import Foundation
 
 enum APIConfig {
     // MARK: - Proxy Server
-    // Replace this with your Mac's IP address when running on a physical iPhone
-    static let proxyBaseURL    = "http://localhost:3000"
+    // Pointing to your newly deployed Render server
+    static let proxyBaseURL    = "https://crypto-proxy-221x.onrender.com"
+    static let proxySecret     = "my-super-secret-key-2026"
 
     // MARK: - Finnhub  (stocks, ETFs, search)
     static let finnhubKey      = "d87eoq9r01ql0hslfu60d87eoq9r01ql0hslfu6g"          // e.g. "cxxxxxxxxxxxxxxxxxxxxxx"

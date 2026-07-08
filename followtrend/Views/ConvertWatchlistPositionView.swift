@@ -41,23 +41,19 @@ struct ConvertWatchlistPositionView: View {
         NavigationStack {
             ZStack {
                 Color.bgDeep.ignoresSafeArea()
-                RadialGradient(
-                    colors: [Color.jade.opacity(0.18), Color.clear],
-                    center: .topTrailing,
-                    startRadius: 20,
-                    endRadius: 360
-                )
-                .ignoresSafeArea()
 
                 ScrollView {
-                    VStack(spacing: 18) {
+                    VStack(alignment: .leading, spacing: 18) {
+                        OverlineLabel(lm.t("detail.convert_to_position"))
+                            .padding(.leading, 4)
+
                         assetHeaderCard
 
                         sectionCard(title: lm.t("add.kauf_informationen")) {
                             numberRow(label: lm.t("add.stueckzahl"), placeholder: "0.00", text: $sharesText)
-                            Divider().background(Color.borderHair)
+                            hairline
                             numberRow(label: lm.t("detail.kaufpreis"), placeholder: "0.00", text: $priceText)
-                            Divider().background(Color.borderHair)
+                            hairline
                             DatePicker(
                                 lm.t("detail.kaufdatum"),
                                 selection: $buyDate,
@@ -65,8 +61,19 @@ struct ConvertWatchlistPositionView: View {
                                 displayedComponents: .date
                             )
                             .datePickerStyle(.compact)
-                            .tint(.jade)
-                            .foregroundStyle(Color.textPrimary)
+                            .tint(.mintAccent)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Color.labelSecondary)
+
+                            if isValid {
+                                HStack {
+                                    Spacer()
+                                    Text("≈ \(CurrencyService.shared.format(value: parsedShares * parsedPrice, from: investment.nativeCurrency))")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .monospacedDigit()
+                                        .foregroundStyle(Color.labelTertiary)
+                                }
+                            }
                         }
                     }
                     .padding(.horizontal, AppLayout.contentHorizontalPadding)
@@ -81,19 +88,19 @@ struct ConvertWatchlistPositionView: View {
                     .padding(.bottom, 16)
                     .background {
                         LinearGradient(
-                            colors: [.clear, Color.black.opacity(0.85), Color.black],
+                            colors: [.clear, Color.bgDeep.opacity(0.85), Color.bgDeep],
                             startPoint: .top,
                             endPoint: .bottom
                         )
                         .ignoresSafeArea()
                     }
             }
-            .navigationTitle(lm.t("actions.convert"))
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(lm.t("add.abbrechen")) { dismiss() }
-                        .foregroundStyle(Color.textSecondary)
+                        .foregroundStyle(Color.mintAccent)
                 }
             }
         }
@@ -101,37 +108,16 @@ struct ConvertWatchlistPositionView: View {
     }
 
     private var assetHeaderCard: some View {
-        HStack(spacing: 14) {
-            let sfSymbolName: String? = {
-                switch investment.symbol.uppercased() {
-                case "AAPL": return "apple.logo"
-                case "BTC": return "bitcoinsign.circle.fill"
-                default: return nil
-                }
-            }()
-            
-            ZStack {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color(hex: "#6366f1").opacity(0.16))
-                    .frame(width: 32, height: 32)
-                if let sfSymbolName {
-                    Image(systemName: sfSymbolName)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Color(hex: "#818cf8"))
-                } else {
-                    Text(String(investment.symbol.prefix(2)))
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(Color(hex: "#818cf8"))
-                }
-            }
+        HStack(spacing: 12) {
+            MonogramTile(symbol: investment.symbol, size: 40)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(investment.symbol)
-                    .font(.system(size: 16, weight: .bold))
+                    .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(Color.textPrimary)
                 Text(investment.name)
-                    .font(.system(size: 12))
-                    .foregroundStyle(Color.textSecondary)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Color.labelSecondary)
                     .lineLimit(1)
             }
             Spacer()
@@ -139,20 +125,16 @@ struct ConvertWatchlistPositionView: View {
         .padding(14)
         .background {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(.ultraThinMaterial)
+                .fill(Color.surface)
                 .overlay(
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(Color.bgCard.opacity(0.74))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.8)
+                        .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5)
                 )
         }
     }
 
     private var convertButton: some View {
-        LiquidGlassButton(glowColor: isValid ? Color.jade : Color(white: 0.3)) {
+        Button {
             guard isValid else {
                 shakeTrigger.toggle()
                 haptic(.rigid)
@@ -162,45 +144,48 @@ struct ConvertWatchlistPositionView: View {
             let fmt = DateFormatter()
             fmt.dateFormat = "yyyy-MM-dd"
             onConfirm(parsedShares, parsedPrice, fmt.string(from: buyDate))
-            haptic(.medium)
+            hapticSuccess()
             dismiss()
         } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "arrow.triangle.2.circlepath.circle.fill")
-                    .font(.system(size: 18, weight: .semibold))
-                Text(lm.t("actions.convert"))
-                    .font(.system(size: 16, weight: .bold))
-            }
-            .foregroundStyle(isValid ? Color.textPrimary : Color.textMuted)
+            Text(lm.t("detail.convert_to_position"))
+                .font(.system(size: 16, weight: .bold))
+                .foregroundStyle(Color.mintInk)
+                .frame(maxWidth: .infinity)
         }
+        .buttonStyle(.glassProminent)
+        .tint(Color.mintAccent)
+        .controlSize(.large)
+        .buttonBorderShape(.capsule)
         .disabled(!isValid)
-        .opacity(isValid ? 1 : 0.45)
         .modifier(ShakeModifier(trigger: shakeTrigger))
+    }
+
+    private var hairline: some View {
+        Rectangle()
+            .fill(Color.separatorHair)
+            .frame(height: 0.5)
     }
 
     private func sectionCard<C: View>(title: String, @ViewBuilder content: () -> C) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(title)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(Color.textMuted)
-                .textCase(.uppercase)
-                .tracking(1.2)
+            OverlineLabel(title)
             content()
         }
-        .cardStyle()
+        .cardStyle(cornerRadius: 16)
     }
 
     private func numberRow(label: String, placeholder: String, text: Binding<String>) -> some View {
         HStack {
             Text(label)
-                .font(.system(size: 15))
-                .foregroundStyle(Color.textPrimary)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Color.labelSecondary)
             Spacer()
             TextField(placeholder, text: text)
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.trailing)
-                .font(.system(size: 15, weight: .semibold, design: .monospaced))
-                .foregroundStyle(Color.jade)
+                .font(.system(size: 16, weight: .semibold))
+                .monospacedDigit()
+                .foregroundStyle(Color.mintAccent)
                 .frame(maxWidth: 140)
         }
     }

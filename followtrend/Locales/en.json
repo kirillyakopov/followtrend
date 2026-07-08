@@ -7,7 +7,8 @@
     "gesamt": "Total",
     "einzel": "Items",
     "bubbles": "Bubbles",
-    "anlegen": "Add"
+    "anlegen": "Add",
+    "profile": "Profile"
   },
   "portfolio": {
     "brokerage": "Brokerage",
@@ -25,7 +26,19 @@
     "stueck": "Shares",
     "loeschen": "Delete",
     "watchlist": "Watchlist",
-    "risk_correlation": "RISK & CORRELATION"
+    "risk_correlation": "RISK & CORRELATION",
+    "net_worth": "NET WORTH",
+    "all_time_return": "ALL-TIME RETURN",
+    "allocation": "ALLOCATION",
+    "top_holdings": "TOP HOLDINGS",
+    "the_map": "The map",
+    "holdings_title": "HOLDINGS",
+    "add_position_title": "Add a position",
+    "new_entry_title": "NEW ENTRY",
+    "your_profile_title": "Your profile",
+    "account_title": "ACCOUNT",
+    "row_hint": "Swipe a row for actions · Tap for details",
+    "live": "Live"
   },
   "sort": {
     "title": "SORT POSITIONS",
@@ -63,8 +76,7 @@
   "einzel": {
     "depot": "PORTFOLIO",
     "rendite": "RETURN",
-    "live": "Live",
-    "tippe_ziehen": "Tap · Drag to move"
+    "live": "Live"
   },
   "detail": {
     "meine_position": "MY POSITION",
@@ -92,7 +104,9 @@
     "notes_placeholder": "Enter notes here...",
     "tags_placeholder": "Enter tags (comma separated)...",
     "insufficient_correlation_data": "Insufficient historical data for correlation analysis",
-    "pearson_correlation": "Pearson Correlation"
+    "pearson_correlation": "Pearson Correlation",
+    "watchlist_ghost_info": "On your watchlist — doesn't affect portfolio value.",
+    "today_suffix": "today"
   },
   "add": {
     "wertpapier_suchen": "Search assets...",
@@ -107,7 +121,10 @@
     "uebernehmen": "Add Position",
     "portfolio": "Portfolio",
     "watchlist": "Watchlist",
-    "zu_watchlist_hinzufuegen": "Add to Watchlist"
+    "zu_watchlist_hinzufuegen": "Add to Watchlist",
+    "suggested": "SUGGESTED",
+    "owned": "OWNED",
+    "approx_at_current_price": "≈ %@ at current price"
   },
   "profile": {
     "profil": "Profile",
@@ -117,10 +134,17 @@
     "apple_id_verknuepft": "Apple ID Linked",
     "deine_daten_sicher": "Your data is securely stored",
     "daten_apple_verknuepft": "Your data is securely linked to your Apple ID.",
-    "sprache": "Language"
+    "sprache": "Language",
+    "general": "General",
+    "about": "About",
+    "version": "Version",
+    "currency": "Currency",
+    "price_source": "Price Source"
   },
   "common": {
-    "fertig": "Done"
+    "fertig": "Done",
+    "abbrechen": "Cancel",
+    "speichern": "Save"
   },
   "alerts": {
     "title": "Price Alert",
@@ -166,7 +190,9 @@
   "advice": {
     "noActivePositions": "No positions",
     "noActivePositionsBody": "Add active positions to unlock portfolio coaching.",
-    "allocation": { "title": "PORTFOLIO ALLOCATION" },
+    "allocation": {
+      "title": "PORTFOLIO ALLOCATION"
+    },
     "largest": {
       "title": "LARGEST POSITION",
       "warning": "%@ represents %@%% of your portfolio. Consider reducing concentration.",
@@ -183,10 +209,15 @@
       "emptyTitle": "Balanced mix",
       "criticalTitle": "Needs attention",
       "warningTitle": "Worth a look",
-      "infoTitle": "Looks balanced"
+      "infoTitle": "Looks balanced",
+      "reviewChip": "Review suggestion"
     },
-    "diversification": { "title": "DIVERSIFICATION TIP" },
-    "concentration": { "title": "CONCENTRATION WARNING" },
+    "diversification": {
+      "title": "DIVERSIFICATION TIP"
+    },
+    "concentration": {
+      "title": "CONCENTRATION WARNING"
+    },
     "stablecoin": {
       "title": "CASH-LIKE CRYPTO",
       "noneTitle": "No stablecoins",
@@ -203,10 +234,22 @@
   },
   "bubbleInfo": {
     "title": "Bubble Intelligence",
-    "size": { "title": "Bubble size", "body": "Shows portfolio weight. Larger bubbles represent larger positions." },
-    "color": { "title": "Bubble color", "body": "Shows performance. Green means positive return, red means negative return, neutral means flat." },
-    "ghost": { "title": "Ghost bubbles", "body": "Watchlist items are shown as ghost bubbles. They do not affect portfolio value or analytics." },
-    "stablecoins": { "title": "Stablecoins", "body": "Stablecoins are treated as cash-like crypto and excluded from volatility-based advice." }
+    "size": {
+      "title": "Bubble size",
+      "body": "Shows portfolio weight. Larger bubbles represent larger positions."
+    },
+    "color": {
+      "title": "Bubble color",
+      "body": "Shows performance. Green means positive return, red means negative return, neutral means flat."
+    },
+    "ghost": {
+      "title": "Ghost bubbles",
+      "body": "Watchlist items are shown as ghost bubbles. They do not affect portfolio value or analytics."
+    },
+    "stablecoins": {
+      "title": "Stablecoins",
+      "body": "Stablecoins are treated as cash-like crypto and excluded from volatility-based advice."
+    }
   },
   "pearson": {
     "title": "Pearson Correlation",
@@ -283,7 +326,10 @@
       "insufficientData": "Insufficient historical data",
       "calculationFailed": "Unable to calculate correlation",
       "loading": "Loading correlation data..."
-    }
+    },
+    "glyph_together": "Move together",
+    "glyph_independent": "Independent",
+    "glyph_opposite": "Move opposite"
   },
   "search": {
     "portfolio": "Search positions",
@@ -319,6 +365,26 @@
     "correlationCluster": "Correlation Cluster",
     "popSelected": "Pop Selected",
     "mergeSelected": "Merge Selected",
-    "customCluster": "Custom Cluster"
+    "customCluster": "Custom Cluster",
+    "interactionHint": "Tap & drag to move · Hold to select or create clusters",
+    "renameCluster": "Rename Cluster",
+    "renameClusterDesc": "Enter a new name for this cluster.",
+    "clusterName": "Cluster Name",
+    "gaining": "Gaining",
+    "losing": "Losing"
+  },
+  "watchlist": {
+    "ghost_hint": "Ghost bubbles — they float in Bubble View but never affect your portfolio value."
+  },
+  "chart": {
+    "retry": "Retry",
+    "no_data": "No chart data available"
+  },
+  "cluster": {
+    "stats_combined_value": "Combined value",
+    "stats_combined_return": "Combined return",
+    "stats_largest_holding": "Largest holding",
+    "stats_top_performer": "Top performer",
+    "correlation_link": "What does correlation mean?"
   }
 }
