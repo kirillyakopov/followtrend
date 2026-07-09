@@ -27,6 +27,7 @@ struct AddStockView: View {
     @Environment(\.dismiss) private var dismiss
     // Broker integration
     @State private var showBrokerIntegration = false
+    @State private var showImportSheet = false
     @State private var brokerPlatform = "Trade Republic"
     @State private var brokerPriceText = ""
     @State private var brokerCurrency: AppCurrency = .eur
@@ -100,7 +101,26 @@ struct AddStockView: View {
 
                 modePicker
                     .padding(.horizontal, AppLayout.contentHorizontalPadding)
-                    .padding(.bottom, 16)
+                    .padding(.bottom, 10)
+
+                // Bulk import — paste a whole portfolio instead of one-by-one entry
+                Button {
+                    haptic(.light)
+                    showImportSheet = true
+                } label: {
+                    HStack(spacing: 7) {
+                        Image(systemName: "square.and.arrow.down")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text(lm.t("import.entry_button"))
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+                    .foregroundStyle(Color.mintAccent)
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.glass)
+                .buttonBorderShape(.capsule)
+                .padding(.horizontal, AppLayout.contentHorizontalPadding)
+                .padding(.bottom, 16)
 
                 ScrollView {
                     VStack(spacing: 24) {
@@ -146,6 +166,10 @@ struct AddStockView: View {
             if isWatchlist {
                 sharesText = "1.0"
             }
+        }
+        .sheet(isPresented: $showImportSheet) {
+            PortfolioImportView(vm: vm, onImported: { dismiss() })
+                .environmentObject(lm)
         }
     }
 

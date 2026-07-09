@@ -193,7 +193,7 @@ final class PortfolioViewModel: ObservableObject {
 
     func selectedCurrencyValue(for inv: Investment) -> Double {
         let nativeValue = inv.shares * displayPrice(for: inv)
-        return CurrencyService.shared.convertToSelected(value: nativeValue, from: inv.nativeCurrency)
+        return CurrencyService.shared.convertToSelected(value: nativeValue, from: inv.priceCurrency)
     }
 
     func selectedCurrencyCost(for inv: Investment) -> Double {
@@ -318,7 +318,7 @@ final class PortfolioViewModel: ObservableObject {
         for inv in investments {
             guard !inv.isWatchlist else { continue }
             let price = displayPrice(for: inv)
-            let convertedPrice = cs.convertToSelected(value: price, from: inv.nativeCurrency)
+            let convertedPrice = cs.convertToSelected(value: price, from: inv.priceCurrency)
             value += inv.shares * convertedPrice
 
             let convertedCost = cs.convertToSelected(value: inv.totalCost, from: inv.nativeCurrency)
@@ -348,7 +348,7 @@ final class PortfolioViewModel: ObservableObject {
 
         let valuesByID: [String: Double] = Dictionary(uniqueKeysWithValues: active.map { inv in
             let price = displayPrice(for: inv)
-            let convertedPrice = cs.convertToSelected(value: price, from: inv.nativeCurrency)
+            let convertedPrice = cs.convertToSelected(value: price, from: inv.priceCurrency)
             return (inv.id, inv.shares * convertedPrice)
         })
 
@@ -495,14 +495,18 @@ final class PortfolioViewModel: ObservableObject {
         brokerAdjustment: BrokerAdjustmentDraft? = nil
     ) {
         let sym = symbol.uppercased().trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !sym.isEmpty, shares > 0, buyPrice > 0 else { return }
+        // Watchlist ghosts legitimately have no purchase price (0) — only real
+        // positions require a positive buy price. (This is why imported ghost
+        // bubbles used to silently vanish.)
+        guard !sym.isEmpty, shares > 0 else { return }
+        if !isWatchlist, buyPrice <= 0 { return }
 
         let assetName = name ?? marketService.getStockInfo(for: sym)?.name ?? sym
 
         if let idx = investments.firstIndex(where: { $0.symbol == sym && $0.isWatchlist == isWatchlist }) {
             let existing      = investments[idx]
             if isWatchlist {
-                investments[idx].buyPrice = buyPrice
+                if buyPrice > 0 { investments[idx].buyPrice = buyPrice }
             } else {
                 let totalShares   = existing.shares + shares
                 let weightedPrice = (existing.shares * existing.buyPrice + shares * buyPrice) / totalShares
@@ -1099,7 +1103,6 @@ final class PortfolioViewModel: ObservableObject {
         
         // 5. Empty Snapshot Bug Guard
         if visible.isEmpty && !base.isEmpty {
-            print("WARNING: visible.isEmpty but base is not. Falling back.")
             visible = base
         }
         
@@ -1109,12 +1112,6 @@ final class PortfolioViewModel: ObservableObject {
                 connections.append(BubbleConnection(id: "\(cluster.id.uuidString)-\(sym)", fromSymbol: cluster.name, toSymbol: sym))
             }
         }
-        
-        print("Investments:", investments.count)
-        print("Base particles:", base.count)
-        print("Clusters:", bubbleClusters.count)
-        print("Expanded cluster:", expandedClusterID?.uuidString ?? "none")
-        print("Visible particles:", visible.count)
         
         self.bubbleRenderSnapshot = BubbleRenderSnapshot(
             particles: visible,
@@ -1174,7 +1171,7 @@ final class PortfolioViewModel: ObservableObject {
         watchlistRows = watchlist.map { inv in
             let price    = marketService.getCurrentPrice(for: inv.symbol)
             let gainPct  = marketService.getStockInfo(for: inv.symbol)?.dayChangePercent ?? 0.0
-            let priceText = cs.format(value: price, from: inv.nativeCurrency)
+            let priceText = cs.format(value: price, from: inv.priceCurrency)
             let changeText = String(format: "%@%.1f%%", gainPct >= 0 ? "+" : "", gainPct)
 
             return WatchlistRowModel(
