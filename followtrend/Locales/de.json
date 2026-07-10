@@ -229,6 +229,22 @@
       "none": "Noch kein starkes Korrelationssignal verfügbar.",
       "positive": "%@ und %@ bewegen sich derzeit ähnlich. Das kann Diversifikation verringern.",
       "negative": "%@ und %@ bewegen sich eher auseinander, was Diversifikation unterstützen kann."
+    },
+    "score": {
+      "title": "Diversifikations-Score",
+      "excellent": "Ausgezeichnet",
+      "good": "Gut",
+      "moderate": "Mäßig",
+      "weak": "Schwach",
+      "poor": "Konzentriert",
+      "unavailable": "Zu wenig Daten"
+    },
+    "risk": {
+      "title": "Risiko-Überblick",
+      "volatility": "Volatilität 30T",
+      "drawdown": "Max. Drawdown",
+      "topHolding": "Größte Position",
+      "unavailable": "—"
     }
   },
   "bubbleInfo": {

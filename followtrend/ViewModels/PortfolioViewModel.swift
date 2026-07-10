@@ -33,6 +33,9 @@ final class PortfolioViewModel: ObservableObject {
     @Published private(set) var rebalancingSuggestions: [RebalancingSuggestion] = []
     @Published private(set) var volatilityBySymbol: [String: Double] = [:]
 
+    /// Deepest peak-to-trough decline of portfolio value over the past year (negative %).
+    @Published private(set) var maxDrawdown: Double? = nil
+
     enum CorrelationState: Equatable {
         case loading
         case success(Double)
@@ -67,7 +70,9 @@ final class PortfolioViewModel: ObservableObject {
         assetAllocation: [], rebalancingSuggestions: [], correlationMatrix: [:],
         activeInvestmentIDs: [], strongestPairSymbolA: nil, strongestPairSymbolB: nil,
         strongestPairValue: nil, largestSymbol: nil, largestWeight: 0,
-        stablecoinPercentage: 0, hasStablecoins: false
+        stablecoinPercentage: 0, hasStablecoins: false,
+        diversificationScore: nil, averageCorrelation: nil,
+        volatility30D: nil, maxDrawdown: nil
     )
 
     /// Incremented only when investments are added/removed — used by chart to avoid reloading on price ticks.
@@ -304,7 +309,75 @@ final class PortfolioViewModel: ObservableObject {
                 self.correlationState = .insufficientData
             }
             self.refreshCachedPortfolioAnalytics()
+            // Fold the fresh correlation/volatility into the advice snapshot.
+            self.rebuildRowModels()
         }
+
+        await computeMaxDrawdown()
+    }
+
+    // MARK: Risk metrics (advice cards)
+
+    /// 0–100 diversification score from the portfolio's average pairwise
+    /// correlation (r = 0.32 → 68). Lower correlation ⇒ better diversified.
+    var diversificationScoreValue: Int? {
+        guard let r = portfolioCorrelation else { return nil }
+        return Int(max(0.0, min(100.0, (1.0 - r) * 100.0)).rounded())
+    }
+
+    /// True portfolio volatility from the covariance matrix
+    /// (σₚ² = ΣΣ wᵢ wⱼ σᵢ σⱼ ρᵢⱼ), annualised to a percentage. `volatilityBySymbol`
+    /// holds the daily σ of log returns. Pairs the correlation engine couldn't
+    /// compute fall back to the portfolio's average correlation.
+    func portfolioVolatility30D(active: [Investment], totalValue: Double) -> Double? {
+        guard totalValue > 0, !volatilityBySymbol.isEmpty else { return nil }
+
+        var items: [(symbol: String, weight: Double, sigma: Double)] = []
+        for inv in active {
+            guard let sigma = volatilityBySymbol[inv.symbol], sigma > 0 else { continue }
+            let weight = selectedCurrencyValue(for: inv) / totalValue
+            guard weight > 0 else { continue }
+            items.append((inv.symbol, weight, sigma))
+        }
+        guard !items.isEmpty else { return nil }
+
+        let totalWeight = items.reduce(0.0) { $0 + $1.weight }
+        guard totalWeight > 0 else { return nil }
+
+        let fallbackRho = portfolioCorrelation ?? 1.0
+        var variance = 0.0
+        for i in items.indices {
+            for j in items.indices {
+                let wi = items[i].weight / totalWeight
+                let wj = items[j].weight / totalWeight
+                let rho: Double = (i == j)
+                    ? 1.0
+                    : (correlationMatrix[AssetPair(items[i].symbol, items[j].symbol)] ?? fallbackRho)
+                variance += wi * wj * items[i].sigma * items[j].sigma * rho
+            }
+        }
+        guard variance > 0 else { return nil }
+        return sqrt(variance) * sqrt(252.0) * 100.0   // daily σ → annualised %
+    }
+
+    /// Deepest peak-to-trough decline of total portfolio value over the past year.
+    func computeMaxDrawdown() async {
+        var result: Double? = nil
+        if investments.contains(where: { !$0.isWatchlist }),
+           let points = try? await fetchPortfolioCandles(timeframe: .oneYear),
+           points.count > 1 {
+            var peak = points[0].close
+            var worst = 0.0
+            for point in points {
+                if point.close > peak { peak = point.close }
+                guard peak > 0 else { continue }
+                let decline = (point.close - peak) / peak * 100.0
+                if decline < worst { worst = decline }
+            }
+            result = worst
+        }
+        maxDrawdown = result
+        rebuildRowModels()
     }
 
     // MARK: Performance calculation
@@ -710,6 +783,7 @@ final class PortfolioViewModel: ObservableObject {
     func fetchPortfolioCandles(timeframe: Timeframe) async throws -> [ChartPoint] {
         let activeInvestments = investments.filter { !$0.isWatchlist }
         guard !activeInvestments.isEmpty else { return [] }
+        let cs = CurrencyService.shared
         
         var chartDataDict = [String: [ChartPoint]]()
         
@@ -743,12 +817,19 @@ final class PortfolioViewModel: ObservableObject {
             
             for inv in activeInvestments {
                 guard let assetPoints = chartDataDict[inv.id] else { continue }
-                
+
+                let nativeValue: Double
                 if let closestPoint = assetPoints.last(where: { $0.timestamp <= refDate }) {
-                    totalValue += inv.positionValue(apiPrice: closestPoint.close, mode: priceSourceMode)
+                    nativeValue = inv.positionValue(apiPrice: closestPoint.close, mode: priceSourceMode)
                 } else if let firstPoint = assetPoints.first {
-                    totalValue += inv.positionValue(apiPrice: firstPoint.close, mode: priceSourceMode)
+                    nativeValue = inv.positionValue(apiPrice: firstPoint.close, mode: priceSourceMode)
+                } else {
+                    continue
                 }
+                // Candles are quoted in the asset's price currency (EUR for crypto,
+                // USD for stocks) — convert before summing, or the aggregate silently
+                // mixes currencies and distorts the series (and max drawdown).
+                totalValue += cs.convertToSelected(value: nativeValue, from: inv.priceCurrency)
             }
             
             let pointValue = totalValue + cashBalance
@@ -1211,7 +1292,11 @@ final class PortfolioViewModel: ObservableObject {
             largestSymbol:         largest?.0.symbol,
             largestWeight:         largestWeight,
             stablecoinPercentage:  stablecoinSlice?.percentage ?? 0,
-            hasStablecoins:        stablecoinSlice != nil
+            hasStablecoins:        stablecoinSlice != nil,
+            diversificationScore:  diversificationScoreValue,
+            averageCorrelation:    portfolioCorrelation,
+            volatility30D:         portfolioVolatility30D(active: active, totalValue: totalActiveValue),
+            maxDrawdown:           maxDrawdown
         )
         // Only publish if something actually changed — prevents advice cards from re-rendering
         // on every price tick when the analytics values haven't changed.

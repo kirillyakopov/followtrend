@@ -230,6 +230,22 @@
       "none": "Aucun signal de corrélation fort n'est encore disponible.",
       "positive": "%@ et %@ évoluent actuellement de façon similaire. Cela peut réduire la diversification.",
       "negative": "%@ et %@ ont tendance à évoluer séparément, ce qui peut aider la diversification."
+    },
+    "score": {
+      "title": "Score de diversification",
+      "excellent": "Excellent",
+      "good": "Bon",
+      "moderate": "Modéré",
+      "weak": "Faible",
+      "poor": "Concentré",
+      "unavailable": "Données insuffisantes"
+    },
+    "risk": {
+      "title": "Aperçu du risque",
+      "volatility": "Volatilité 30J",
+      "drawdown": "Baisse max",
+      "topHolding": "Top position",
+      "unavailable": "—"
     }
   },
   "bubbleInfo": {

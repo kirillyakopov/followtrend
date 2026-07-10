@@ -230,6 +230,22 @@
       "none": "No strong correlation signal is available yet.",
       "positive": "%@ and %@ currently move similarly. That can reduce diversification.",
       "negative": "%@ and %@ tend to move apart, which may help diversification."
+    },
+    "score": {
+      "title": "Diversification Score",
+      "excellent": "Excellent",
+      "good": "Good",
+      "moderate": "Moderate",
+      "weak": "Weak",
+      "poor": "Concentrated",
+      "unavailable": "Not enough data"
+    },
+    "risk": {
+      "title": "Risk Overview",
+      "volatility": "Volatility 30D",
+      "drawdown": "Max drawdown",
+      "topHolding": "Top holding",
+      "unavailable": "—"
     }
   },
   "bubbleInfo": {

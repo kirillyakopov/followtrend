@@ -111,4 +111,12 @@ struct AdviceCardsSnapshot: Equatable {
     // Pre-computed for stablecoin card
     let stablecoinPercentage: Double
     let hasStablecoins: Bool
+
+    // Pre-computed for diversification-score card
+    let diversificationScore: Int?      // 0–100, from the average pairwise correlation
+    let averageCorrelation: Double?
+
+    // Pre-computed for risk-overview card
+    let volatility30D: Double?          // annualised %, from daily log-return σ
+    let maxDrawdown: Double?            // negative %, deepest peak-to-trough
 }

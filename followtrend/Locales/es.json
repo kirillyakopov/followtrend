@@ -230,6 +230,22 @@
       "none": "Aún no hay una señal fuerte de correlación.",
       "positive": "%@ y %@ se mueven de forma similar. Eso puede reducir la diversificación.",
       "negative": "%@ y %@ tienden a separarse, lo que puede ayudar a diversificar."
+    },
+    "score": {
+      "title": "Puntuación de diversificación",
+      "excellent": "Excelente",
+      "good": "Bueno",
+      "moderate": "Moderado",
+      "weak": "Débil",
+      "poor": "Concentrado",
+      "unavailable": "Datos insuficientes"
+    },
+    "risk": {
+      "title": "Resumen de riesgo",
+      "volatility": "Volatilidad 30D",
+      "drawdown": "Caída máxima",
+      "topHolding": "Mayor posición",
+      "unavailable": "—"
     }
   },
   "bubbleInfo": {

@@ -2,8 +2,11 @@
 //  PortfolioAdviceCardsView.swift
 //  followtrend
 //
-//  Insight cards carousel (README §1.6) — horizontal paging,
-//  fixed 294×164 Liquid Glass cards, view-aligned snapping.
+//  Insight cards carousel (README §1.6) — one full-width card at a time,
+//  native Liquid Glass, paged with swipe + page dots.
+//
+//  Cards: Portfolio Allocation · Rebalancing · Diversification Score ·
+//         Risk Overview · Stablecoins (only when the portfolio holds any).
 //
 
 import SwiftUI
@@ -13,40 +16,78 @@ struct PortfolioAdviceCardsView: View {
     var onCorrelationTap: (() -> Void)? = nil
 
     @EnvironmentObject private var lm: AppLanguageManager
+    @State private var currentCardID: Int?
 
-    private static let cardSize = CGSize(width: 294, height: 164)
-    private static let cardPadding: CGFloat = 16
+    private static let cardHeight: CGFloat = 190
+    private static let cardRadius: CGFloat = 28
 
-    var body: some View {
-        ScrollView(.horizontal) {
-            HStack(spacing: 12) {
-                insightCard { allocationCard }
-                insightCard { rebalancingCard }
-                insightCard { diversificationCard }
-                    .onTapGesture { onCorrelationTap?() }
-                insightCard { concentrationCard }
-                insightCard { stablecoinCard }
-            }
-            .scrollTargetLayout()
-        }
-        .scrollTargetBehavior(.viewAligned)
-        .scrollIndicators(.hidden)
-        .contentMargins(.horizontal, 16, for: .scrollContent)
-        // The parent stack applies the 20pt screen margin; bleed out of it so
-        // the carousel scrolls edge-to-edge with its own 16pt content margins.
-        .padding(.horizontal, -AppLayout.contentHorizontalPadding)
+    private enum CardKind: Int, Identifiable, CaseIterable {
+        case allocation, rebalancing, score, risk, stablecoin
+        var id: Int { rawValue }
     }
 
-    // MARK: - Card chrome (the one place true glass belongs)
+    /// Stablecoin card only earns a swipe when there is something to say.
+    private var visibleCards: [CardKind] {
+        var cards: [CardKind] = [.allocation, .rebalancing, .score, .risk]
+        if snapshot.hasStablecoins { cards.append(.stablecoin) }
+        return cards
+    }
+
+    var body: some View {
+        VStack(spacing: 12) {
+            ScrollView(.horizontal) {
+                HStack(spacing: 14) {
+                    ForEach(visibleCards) { kind in
+                        insightCard { card(for: kind) }
+                            .containerRelativeFrame(.horizontal)
+                            .id(kind.id)
+                    }
+                }
+                .scrollTargetLayout()
+            }
+            .scrollTargetBehavior(.viewAligned)
+            .scrollIndicators(.hidden)
+            .scrollPosition(id: $currentCardID)
+
+            pageDots
+        }
+        .onAppear {
+            if currentCardID == nil { currentCardID = visibleCards.first?.id }
+        }
+    }
+
+    private var pageDots: some View {
+        HStack(spacing: 6) {
+            ForEach(visibleCards) { kind in
+                Circle()
+                    .fill(kind.id == (currentCardID ?? 0) ? Color.mintAccent : Color.white.opacity(0.18))
+                    .frame(width: 6, height: 6)
+                    .animation(.easeInOut(duration: 0.2), value: currentCardID)
+            }
+        }
+    }
+
+    // MARK: - Card chrome (native Liquid Glass)
 
     private func insightCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         content()
-            .frame(
-                width: Self.cardSize.width - Self.cardPadding * 2,
-                height: Self.cardSize.height - Self.cardPadding * 2,
-                alignment: .topLeading
-            )
-            .glassCard(padding: Self.cardPadding, cornerRadius: 26)
+            .padding(18)
+            .frame(maxWidth: .infinity, minHeight: Self.cardHeight, alignment: .topLeading)
+            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Self.cardRadius, style: .continuous))
+    }
+
+    @ViewBuilder
+    private func card(for kind: CardKind) -> some View {
+        switch kind {
+        case .allocation:  allocationCard
+        case .rebalancing: rebalancingCard
+        case .score:
+            diversificationScoreCard
+                .contentShape(Rectangle())
+                .onTapGesture { onCorrelationTap?() }
+        case .risk:        riskOverviewCard
+        case .stablecoin:  stablecoinCard
+        }
     }
 
     // MARK: - PORTFOLIO ALLOCATION
@@ -58,7 +99,7 @@ struct PortfolioAdviceCardsView: View {
     private var allocationCard: some View {
         let ranked = Array(rankedSlices.prefix(5))
 
-        return VStack(alignment: .leading, spacing: 10) {
+        return VStack(alignment: .leading, spacing: 12) {
             OverlineLabel(lm.t("advice.allocation.title"))
 
             if ranked.isEmpty {
@@ -67,22 +108,22 @@ struct PortfolioAdviceCardsView: View {
                     .foregroundStyle(Color.labelSecondary)
                 Spacer(minLength: 0)
             } else {
-                HStack(alignment: .center, spacing: 16) {
-                    AllocationDonut(slices: ranked, diameter: 92)
+                HStack(alignment: .center, spacing: 20) {
+                    AllocationDonut(slices: ranked, diameter: 100)
 
-                    VStack(alignment: .leading, spacing: 7) {
+                    VStack(alignment: .leading, spacing: 8) {
                         ForEach(Array(ranked.prefix(4).enumerated()), id: \.element.id) { index, slice in
                             HStack(spacing: 8) {
                                 Circle()
                                     .fill(AllocationPalette.color(index))
                                     .frame(width: 8, height: 8)
                                 Text(lm.t(slice.category.localizationKey))
-                                    .font(.system(size: 12, weight: .semibold))
+                                    .font(.system(size: 12.5, weight: .semibold))
                                     .foregroundStyle(Color.textPrimary)
                                     .lineLimit(1)
                                 Spacer(minLength: 4)
                                 Text(String(format: "%.0f%%", slice.percentage))
-                                    .font(.system(size: 12, weight: .semibold))
+                                    .font(.system(size: 12.5, weight: .semibold))
                                     .monospacedDigit()
                                     .foregroundStyle(Color.labelSecondary)
                             }
@@ -104,15 +145,15 @@ struct PortfolioAdviceCardsView: View {
             OverlineLabel(lm.t("rebalancing.title"))
 
             Text(rebalancingHeadline(suggestion))
-                .font(.system(size: 17, weight: .bold))
+                .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(Color.textPrimary)
-                .lineLimit(1)
+                .lineLimit(2)
                 .minimumScaleFactor(0.85)
 
             Text(rebalancingMessage(suggestion))
-                .font(.system(size: 13, weight: .medium))
+                .font(.system(size: 13.5, weight: .medium))
                 .foregroundStyle(Color.labelSecondary)
-                .lineLimit(2)
+                .lineLimit(3)
 
             Spacer(minLength: 0)
 
@@ -126,83 +167,107 @@ struct PortfolioAdviceCardsView: View {
         }
     }
 
-    // MARK: - DIVERSIFICATION (strongest correlated pair)
+    // MARK: - DIVERSIFICATION SCORE (gauge)
 
-    private var diversificationCard: some View {
-        let symbolA = snapshot.strongestPairSymbolA
-        let symbolB = snapshot.strongestPairSymbolB
-        let pairValue = snapshot.strongestPairValue
-        let hasPair = symbolA != nil && symbolB != nil
+    private var diversificationScoreCard: some View {
+        let score = snapshot.diversificationScore
 
-        return VStack(alignment: .leading, spacing: 8) {
-            OverlineLabel(lm.t("advice.diversification.title"))
+        return VStack(alignment: .leading, spacing: 12) {
+            OverlineLabel(lm.t("advice.score.title"))
 
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(hasPair ? "\(symbolA!) / \(symbolB!)" : lm.t("advice.correlation.noneTitle"))
-                    .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(Color.textPrimary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.80)
+            HStack(alignment: .center, spacing: 18) {
+                DiversificationGauge(score: score, diameter: 92)
 
-                Text(pairValue.map { String(format: "%+.2f r", $0) } ?? "--")
-                    .font(.system(size: 13, weight: .bold))
-                    .monospacedDigit()
-                    .foregroundStyle(pairColor(hasPair: hasPair, value: pairValue))
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(score.map(gradeLabel) ?? lm.t("advice.score.unavailable"))
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundStyle(score == nil ? Color.labelTertiary : Color.textPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+
+                    Text(correlationMessage(
+                        symbolA: snapshot.strongestPairSymbolA,
+                        symbolB: snapshot.strongestPairSymbolB,
+                        value:   snapshot.strongestPairValue
+                    ))
+                    .font(.system(size: 12.5, weight: .medium))
+                    .foregroundStyle(Color.labelSecondary)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-
-            Text(correlationMessage(symbolA: symbolA, symbolB: symbolB, value: pairValue))
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(Color.labelSecondary)
-                .lineLimit(3)
 
             Spacer(minLength: 0)
         }
     }
 
-    private func pairColor(hasPair: Bool, value: Double?) -> Color {
-        guard hasPair, let value else { return Color.labelTertiary }
-        // Positive correlation reduces diversification → muted loss tint.
-        return value >= 0 ? Color.lossText : Color.gainText
+    private func gradeLabel(_ score: Int) -> String {
+        switch score {
+        case 80...:    return lm.t("advice.score.excellent")
+        case 65..<80:  return lm.t("advice.score.good")
+        case 50..<65:  return lm.t("advice.score.moderate")
+        case 35..<50:  return lm.t("advice.score.weak")
+        default:       return lm.t("advice.score.poor")
+        }
     }
 
-    // MARK: - CONCENTRATION
+    // MARK: - RISK OVERVIEW
 
-    private var concentrationCard: some View {
-        let largestSymbol = snapshot.largestSymbol
+    private var riskOverviewCard: some View {
+        let vol = snapshot.volatility30D
+        let drawdown = snapshot.maxDrawdown
         let weight = snapshot.largestWeight
-        let isHeavy = weight > 35
+        let topSymbol = snapshot.largestSymbol
 
-        return VStack(alignment: .leading, spacing: 8) {
-            OverlineLabel(lm.t("advice.concentration.title"))
+        return VStack(alignment: .leading, spacing: 12) {
+            OverlineLabel(lm.t("advice.risk.title"))
 
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(largestSymbol ?? lm.t("advice.noActivePositions"))
-                    .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(Color.textPrimary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-
-                Text(largestSymbol != nil ? String(format: "%.1f%%", weight) : "--")
-                    .font(.system(size: 13, weight: .bold))
-                    .monospacedDigit()
-                    .foregroundStyle(largestSymbol == nil ? Color.labelTertiary : (isHeavy ? Color.lossText : Color.gainText))
-            }
-
-            Text(largestMessage(symbol: largestSymbol, weight: weight))
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(Color.labelSecondary)
-                .lineLimit(2)
+            riskRow(
+                label: lm.t("advice.risk.volatility"),
+                value: vol.map { String(format: "%.1f%%", $0) },
+                fraction: (vol ?? 0) / 40.0,
+                tint: (vol ?? 0) > 25 ? Color.lossBase : Color.mintAccent
+            )
+            riskRow(
+                label: lm.t("advice.risk.drawdown"),
+                value: drawdown.map { String(format: "%.1f%%", $0) },
+                fraction: abs(drawdown ?? 0) / 50.0,
+                tint: abs(drawdown ?? 0) > 20 ? Color.lossBase : Color.mintAccent
+            )
+            riskRow(
+                label: lm.t("advice.risk.topHolding"),
+                value: topSymbol.map { "\($0)  \(String(format: "%.0f%%", weight))" },
+                fraction: weight / 100.0,
+                tint: weight > 35 ? Color.lossBase : Color.mintAccent
+            )
 
             Spacer(minLength: 0)
+        }
+    }
 
-            // 4pt weight meter: white 8% track, mint (ok) / loss (heavy) fill.
+    private func riskRow(label: String, value: String?, fraction: Double, tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 8) {
+                Text(label.uppercased())
+                    .font(.system(size: 11, weight: .semibold))
+                    .tracking(0.5)
+                    .foregroundStyle(Color.labelTertiary)
+                    .lineLimit(1)
+                Spacer(minLength: 4)
+                Text(value ?? lm.t("advice.risk.unavailable"))
+                    .font(.system(size: 13, weight: .bold))
+                    .monospacedDigit()
+                    .foregroundStyle(value == nil ? Color.labelTertiary : Color.textPrimary)
+                    .lineLimit(1)
+            }
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     Capsule(style: .continuous)
                         .fill(Color.white.opacity(0.08))
                     Capsule(style: .continuous)
-                        .fill(isHeavy ? Color.lossBase : Color.mintAccent)
-                        .frame(width: geo.size.width * CGFloat(min(max(weight, 0), 100)) / 100)
+                        .fill(value == nil ? Color.white.opacity(0.10) : tint)
+                        .frame(width: geo.size.width * CGFloat(min(max(fraction, 0), 1)))
                 }
             }
             .frame(height: 4)
@@ -213,26 +278,25 @@ struct PortfolioAdviceCardsView: View {
 
     private var stablecoinCard: some View {
         let percentage = snapshot.stablecoinPercentage
-        let hasStablecoins = snapshot.hasStablecoins
 
         return VStack(alignment: .leading, spacing: 8) {
             OverlineLabel(lm.t("advice.stablecoin.title"))
 
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(!hasStablecoins ? lm.t("advice.stablecoin.noneTitle") : lm.t("allocation.stablecoins"))
-                    .font(.system(size: 17, weight: .bold))
+                Text(lm.t("allocation.stablecoins"))
+                    .font(.system(size: 18, weight: .bold))
                     .foregroundStyle(Color.textPrimary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
 
-                Text(!hasStablecoins ? "--" : String(format: "%.0f%%", percentage))
+                Text(String(format: "%.0f%%", percentage))
                     .font(.system(size: 13, weight: .bold))
                     .monospacedDigit()
-                    .foregroundStyle(hasStablecoins ? Color.gainText : Color.labelTertiary)
+                    .foregroundStyle(Color.gainText)
             }
 
-            Text(stablecoinMessage(percentage: percentage, hasStablecoins: hasStablecoins))
-                .font(.system(size: 13, weight: .medium))
+            Text(stablecoinMessage(percentage: percentage, hasStablecoins: true))
+                .font(.system(size: 13.5, weight: .medium))
                 .foregroundStyle(Color.labelSecondary)
                 .lineLimit(3)
 
@@ -261,14 +325,6 @@ struct PortfolioAdviceCardsView: View {
         return String(format: format, arguments: args)
     }
 
-    private func largestMessage(symbol: String?, weight: Double) -> String {
-        guard let symbol else { return lm.t("advice.noActivePositionsBody") }
-        if weight > 35 {
-            return String(format: lm.t("advice.largest.warning"), symbol, String(format: "%.0f", weight))
-        }
-        return String(format: lm.t("advice.largest.healthy"), symbol)
-    }
-
     private func correlationMessage(symbolA: String?, symbolB: String?, value: Double?) -> String {
         guard let symbolA, let symbolB, let value else { return lm.t("advice.correlation.none") }
         if value > 0 {
@@ -280,5 +336,42 @@ struct PortfolioAdviceCardsView: View {
     private func stablecoinMessage(percentage: Double, hasStablecoins: Bool) -> String {
         guard hasStablecoins else { return lm.t("advice.stablecoin.none") }
         return String(format: lm.t("advice.stablecoin.body"), String(format: "%.0f", percentage))
+    }
+}
+
+// MARK: - Diversification gauge (84–92pt ring, 245° mint arc, gap at the bottom)
+
+struct DiversificationGauge: View {
+    let score: Int?
+    var diameter: CGFloat = 92
+
+    /// 245° of 360° — the remaining 115° gap is centred at the bottom.
+    private let sweep: Double = 245.0 / 360.0
+    private var startRotation: Double { 90.0 + (360.0 - 245.0) / 2.0 }
+
+    var body: some View {
+        let fraction = Double(score ?? 0) / 100.0
+        let lineWidth = diameter * 0.10
+
+        ZStack {
+            Circle()
+                .trim(from: 0, to: sweep)
+                .stroke(Color.white.opacity(0.08),
+                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                .rotationEffect(.degrees(startRotation))
+
+            Circle()
+                .trim(from: 0, to: sweep * min(max(fraction, 0), 1))
+                .stroke(Color.mintAccent,
+                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                .rotationEffect(.degrees(startRotation))
+                .animation(.spring(response: 0.5, dampingFraction: 0.85), value: score)
+
+            Text(score.map(String.init) ?? "—")
+                .font(.system(size: diameter * 0.26, weight: .heavy))
+                .monospacedDigit()
+                .foregroundStyle(score == nil ? Color.labelTertiary : Color.textPrimary)
+        }
+        .frame(width: diameter, height: diameter)
     }
 }
