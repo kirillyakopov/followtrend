@@ -32,6 +32,7 @@ struct PortfolioImportView: View {
 
     @State private var suppressReparse = false
     @State private var validationTask: Task<Void, Never>? = nil
+    @FocusState private var editorFocused: Bool
 
     /// Search-field fill per spec: rgba(118,118,128,0.16)
     private let fieldFill = Color(red: 118/255, green: 118/255, blue: 128/255).opacity(0.16)
@@ -47,6 +48,26 @@ struct PortfolioImportView: View {
     }
     private var needsChoiceCount: Int {
         drafts.filter { rowState(for: $0) == .ambiguous }.count
+    }
+
+    /// 1-based number of the line still being typed (editor focused, no trailing
+    /// newline). A half-finished line shouldn't be scolded as an error.
+    private var inProgressLine: Int? {
+        guard editorFocused, !text.isEmpty, !text.hasSuffix("\n") else { return nil }
+        let lines = text.components(separatedBy: "\n")
+        guard let idx = lines.lastIndex(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty })
+        else { return nil }
+        return idx + 1
+    }
+    /// The in-progress line's problem, shown as a calm hint instead of a red alarm.
+    private var pendingIssue: ImportIssue? {
+        guard let line = inProgressLine else { return nil }
+        return issues.first { $0.line == line }
+    }
+    /// Problems on lines the user has finished — these get the red card.
+    private var settledIssues: [ImportIssue] {
+        guard let line = inProgressLine else { return issues }
+        return issues.filter { $0.line != line }
     }
 
     var body: some View {
@@ -240,6 +261,7 @@ struct PortfolioImportView: View {
                         .allowsHitTesting(false)
                 }
                 TextEditor(text: $text)
+                    .focused($editorFocused)
                     .font(.system(size: 13.5, weight: .medium, design: .monospaced))
                     .foregroundStyle(Color.textPrimary)
                     .scrollContentBackground(.hidden)
@@ -316,10 +338,21 @@ struct PortfolioImportView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
             }
 
-            if !issues.isEmpty {
+            // The line the user is still typing gets a calm hint, not a red alarm.
+            if let pending = pendingIssue {
+                HStack(spacing: 7) {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.system(size: 11, weight: .semibold))
+                    Text(String(format: lm.t("import.issue_line"), "\(pending.line)") + " · " + reasonText(pending.reason))
+                        .font(.system(size: 12, weight: .medium))
+                }
+                .foregroundStyle(Color.labelTertiary)
+            }
+
+            if !settledIssues.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     OverlineLabel(lm.t("import.issues_title"), color: .lossText)
-                    ForEach(issues) { issue in
+                    ForEach(settledIssues) { issue in
                         HStack(alignment: .top, spacing: 8) {
                             Image(systemName: "exclamationmark.triangle")
                                 .font(.system(size: 11, weight: .semibold))
