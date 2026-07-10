@@ -48,8 +48,11 @@ struct PriceAlertSheet: View {
     }
 
     private var selectedCurrency: AppCurrency { currencyService.selectedCurrency }
+    // The alert threshold is compared against the LIVE quote, so the alert's
+    // base currency is the asset's `priceCurrency` (EUR for crypto, USD for
+    // stocks) — NOT the cost-basis `nativeCurrency`.
     private var assetBaseCurrency: AppCurrency {
-        AppCurrency(rawValue: investment.nativeCurrency.uppercased()) ?? .usd
+        AppCurrency(rawValue: investment.priceCurrency.uppercased()) ?? .usd
     }
 
     private var storedBaseValue: Double {
@@ -150,7 +153,7 @@ struct PriceAlertSheet: View {
                 Text(investment.symbol)
                     .font(.system(size: 18, weight: .heavy))
                     .foregroundStyle(Color.textPrimary)
-                Text(CurrencyService.shared.format(value: livePrice, from: investment.nativeCurrency))
+                Text(CurrencyService.shared.format(value: livePrice, from: investment.priceCurrency))
                     .font(.system(size: 13, weight: .semibold))
                     .monospacedDigit()
                     .foregroundStyle(Color.labelSecondary)
@@ -215,7 +218,8 @@ struct PriceAlertSheet: View {
         let currencyService = CurrencyService.shared
 
         guard let existingAlert else {
-            let base = AppCurrency(rawValue: investment.nativeCurrency.uppercased()) ?? .usd
+            // Prefill from the live quote, which is denominated in priceCurrency.
+            let base = AppCurrency(rawValue: investment.priceCurrency.uppercased()) ?? .usd
             let display = currencyService.convert(
                 value: livePrice,
                 from: base,

@@ -22,7 +22,11 @@ struct PortfolioImportView: View {
     @State private var text: String = ""
     @State private var drafts: [ImportDraft] = []
     @State private var issues: [ImportIssue] = []
-    @State private var checks: [String: TickerCheck] = [:]
+    /// Per-symbol (uppercased) resolution verdict; absence == still checking.
+    @State private var resolutions: [String: ImportResolution] = [:]
+    /// User's disambiguation picks, keyed by uppercased symbol. Survives a full
+    /// re-parse (which drops coinId) and marks the row resolved.
+    @State private var userChoices: [String: ImportCandidate] = [:]
     @State private var defaultCurrency: AppCurrency = .eur
     @State private var editingDraft: ImportDraft? = nil
 
@@ -36,10 +40,13 @@ struct PortfolioImportView: View {
         Set(vm.investments.filter { !$0.isWatchlist }.map { $0.symbol.uppercased() })
     }
     private var importableDrafts: [ImportDraft] {
-        drafts.filter { check(for: $0) != .notFound }
+        drafts.filter { let s = rowState(for: $0); return s != .notFound && s != .ambiguous }
     }
     private var notFoundCount: Int {
-        drafts.filter { check(for: $0) == .notFound }.count
+        drafts.filter { rowState(for: $0) == .notFound }.count
+    }
+    private var needsChoiceCount: Int {
+        drafts.filter { rowState(for: $0) == .ambiguous }.count
     }
 
     var body: some View {
@@ -79,7 +86,7 @@ struct PortfolioImportView: View {
                 suppressReparse = false
             } else {
                 let r = PortfolioImportParser.parse(newValue)
-                drafts = r.drafts
+                drafts = applyUserChoices(to: r.drafts)
                 issues = r.issues
             }
             scheduleValidation()
@@ -88,6 +95,8 @@ struct PortfolioImportView: View {
             ImportRowEditView(
                 draft: d,
                 defaultCurrency: defaultCurrency,
+                candidates: candidates(for: d),
+                chosen: userChoices[d.symbol.uppercased()],
                 onSave: applyEdit,
                 onDelete: deleteDraft
             )
@@ -276,6 +285,12 @@ struct PortfolioImportView: View {
                 if watch > 0 { countBadge("\(watch)", tint: .labelSecondary, dashed: true) }
             }
 
+            if needsChoiceCount > 0 {
+                Text(String(format: lm.t("import.needs_choice_count"), "\(needsChoiceCount)"))
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.mintAccent)
+            }
+
             if notFoundCount > 0 {
                 Text(String(format: lm.t("import.not_found_count"), "\(notFoundCount)"))
                     .font(.system(size: 12, weight: .semibold))
@@ -330,7 +345,7 @@ struct PortfolioImportView: View {
     @ViewBuilder
     private func draftRow(_ draft: ImportDraft) -> some View {
         let merges = !draft.isWatchlist && ownedSymbols.contains(draft.symbol.uppercased())
-        let state = check(for: draft)
+        let state = rowState(for: draft)
         HStack(spacing: 12) {
             MonogramTile(symbol: draft.symbol, size: 38)
                 .opacity(draft.isWatchlist ? 0.55 : 1.0)
@@ -342,6 +357,8 @@ struct PortfolioImportView: View {
                         .foregroundStyle(state == .notFound ? Color.lossText : Color.textPrimary)
                     if state == .notFound {
                         statusPill(lm.t("import.not_found"), color: .lossBase, textColor: .lossText)
+                    } else if state == .ambiguous {
+                        statusPill(lm.t("import.choose"), color: .mintAccent, textColor: .mintAccent, filled: true)
                     } else if state == .unverified {
                         statusPill(lm.t("import.unverified"), color: .neutralFlat, textColor: .labelSecondary)
                     } else if merges {
@@ -415,7 +432,7 @@ struct PortfolioImportView: View {
                 buyPrice: draft.price ?? 0.0,
                 buyDate:  draft.dateString ?? today,
                 name:     draft.name ?? draft.symbol,
-                coinId:   draft.coinId,
+                coinId:   resolvedCoinId(for: draft),
                 nativeCurrency: effectiveCurrency(draft).rawValue,
                 isWatchlist: draft.isWatchlist,
                 brokerAdjustment: nil
@@ -428,16 +445,29 @@ struct PortfolioImportView: View {
 
     // MARK: - Inline edit sync
 
-    private func applyEdit(_ edited: ImportDraft) {
+    private func applyEdit(_ edited: ImportDraft, chosen: ImportCandidate?) {
         var lines = text.components(separatedBy: "\n")
         let li = edited.line - 1
+        let sym = edited.symbol.uppercased()
+
+        // A disambiguation pick carries the coinId that serialize() can't encode;
+        // stash it so it survives both the save below and any later full re-parse.
+        var stored = edited
+        if let chosen {
+            userChoices[sym] = chosen
+            stored.coinId = chosen.coinId
+        } else {
+            // Manual symbol edit with no pick → drop any stale choice and re-validate.
+            userChoices[sym] = nil
+            resolutions[sym] = nil
+        }
+
         if lines.indices.contains(li) {
-            lines[li] = PortfolioImportParser.serialize(edited)
+            lines[li] = PortfolioImportParser.serialize(stored)
         }
-        if let i = drafts.firstIndex(where: { $0.id == edited.id }) {
-            drafts[i] = edited
+        if let i = drafts.firstIndex(where: { $0.id == stored.id }) {
+            drafts[i] = stored
         }
-        checks[edited.symbol.uppercased()] = nil     // symbol may have changed → re-validate
         suppressReparse = true                        // keep our in-place draft identity
         text = lines.joined(separator: "\n")
         editingDraft = nil
@@ -455,8 +485,41 @@ struct PortfolioImportView: View {
 
     // MARK: - Validation
 
-    private func check(for draft: ImportDraft) -> TickerCheck {
-        checks[draft.symbol.uppercased()] ?? .checking
+    /// UI state for a draft row, folding in any user disambiguation choice.
+    private func rowState(for draft: ImportDraft) -> ImportRowState {
+        let sym = draft.symbol.uppercased()
+        if userChoices[sym] != nil { return .resolved }   // a pick unblocks the row
+        switch resolutions[sym] {
+        case .none:                       return .checking
+        case .stock?, .crypto?:           return .resolved
+        case .ambiguous?:                 return .ambiguous
+        case .notFound?:                  return .notFound
+        case .unverified?:                return .unverified
+        }
+    }
+
+    /// Disambiguation options to offer in the edit sheet (empty unless ambiguous).
+    private func candidates(for draft: ImportDraft) -> [ImportCandidate] {
+        if case .ambiguous(let list)? = resolutions[draft.symbol.uppercased()] { return list }
+        return []
+    }
+
+    /// coinId for import: user pick > auto-resolved crypto > whatever the parser set.
+    private func resolvedCoinId(for draft: ImportDraft) -> String? {
+        let sym = draft.symbol.uppercased()
+        if let chosen = userChoices[sym] { return chosen.coinId }
+        if case .crypto(let c)? = resolutions[sym] { return c.coinId }
+        return draft.coinId
+    }
+
+    /// Re-apply saved disambiguation picks after a fresh parse (which drops coinId).
+    private func applyUserChoices(to ds: [ImportDraft]) -> [ImportDraft] {
+        guard !userChoices.isEmpty else { return ds }
+        return ds.map { d in
+            var d = d
+            if let chosen = userChoices[d.symbol.uppercased()] { d.coinId = chosen.coinId }
+            return d
+        }
     }
 
     private func effectiveCurrency(_ d: ImportDraft) -> AppCurrency {
@@ -475,29 +538,31 @@ struct PortfolioImportView: View {
 
     @MainActor
     private func validate() async {
-        // Unique symbols still needing a verdict (skip resolved valid/notFound).
+        // Unique symbols still needing a verdict (skip resolved / user-picked;
+        // retry only the transient .unverified ones).
         var seen = Set<String>()
-        var pending: [(String, String?)] = []
+        var pending: [String] = []
         for d in drafts {
             let s = d.symbol.uppercased()
             guard !seen.contains(s) else { continue }
             seen.insert(s)
-            let cur = checks[s]
+            if userChoices[s] != nil { continue }
+            let cur = resolutions[s]
             if cur == nil || cur == .unverified {
-                pending.append((s, d.coinId))
+                pending.append(s)
             }
         }
         guard !pending.isEmpty else { return }
-        for (s, _) in pending { checks[s] = .checking }
+        for s in pending { resolutions[s] = nil }     // → checking (spinner)
 
-        // Bounded concurrency (≤6) to stay polite to the quote provider.
+        // Bounded concurrency (≤6) to stay polite to the APIs.
         for chunk in pending.chunked(into: 6) {
-            await withTaskGroup(of: (String, Bool?).self) { group in
-                for (sym, coinId) in chunk {
-                    group.addTask { (sym, await MarketDataService.shared.symbolExists(symbol: sym, coinId: coinId)) }
+            await withTaskGroup(of: (String, ImportResolution).self) { group in
+                for sym in chunk {
+                    group.addTask { (sym, await ImportTickerResolver.resolve(symbol: sym)) }
                 }
-                for await (sym, exists) in group {
-                    checks[sym] = exists == true ? .valid : (exists == false ? .notFound : .unverified)
+                for await (sym, res) in group {
+                    resolutions[sym] = res
                 }
             }
             if Task.isCancelled { return }
@@ -547,6 +612,17 @@ struct PortfolioImportView: View {
     }
 }
 
+// MARK: - Row UI state
+
+/// The visual state of a preview row, derived from its resolution + user pick.
+private enum ImportRowState: Equatable {
+    case checking      // resolver in flight
+    case resolved      // stock or crypto (or a user-picked candidate) — clean
+    case ambiguous     // multiple matches, needs a choice
+    case notFound      // both providers say unknown
+    case unverified    // lookup couldn't be completed
+}
+
 // MARK: - Chunking helper
 
 private extension Array {
@@ -561,7 +637,8 @@ private extension Array {
 private struct ImportRowEditView: View {
     let draft: ImportDraft
     let defaultCurrency: AppCurrency
-    let onSave: (ImportDraft) -> Void
+    let candidates: [ImportCandidate]
+    let onSave: (ImportDraft, ImportCandidate?) -> Void
     let onDelete: (ImportDraft) -> Void
 
     @EnvironmentObject private var lm: AppLanguageManager
@@ -575,11 +652,14 @@ private struct ImportRowEditView: View {
     @State private var hasDate: Bool
     @State private var date: Date
     @State private var name: String
+    @State private var chosenCandidate: ImportCandidate?
 
     init(draft: ImportDraft, defaultCurrency: AppCurrency,
-         onSave: @escaping (ImportDraft) -> Void, onDelete: @escaping (ImportDraft) -> Void) {
+         candidates: [ImportCandidate], chosen: ImportCandidate?,
+         onSave: @escaping (ImportDraft, ImportCandidate?) -> Void, onDelete: @escaping (ImportDraft) -> Void) {
         self.draft = draft
         self.defaultCurrency = defaultCurrency
+        self.candidates = candidates
         self.onSave = onSave
         self.onDelete = onDelete
         _symbol = State(initialValue: draft.symbol)
@@ -588,6 +668,7 @@ private struct ImportRowEditView: View {
         _priceText = State(initialValue: draft.price.map { PortfolioImportParser.numberString($0) } ?? "")
         _currency = State(initialValue: draft.currency.flatMap { AppCurrency(rawValue: $0.uppercased()) } ?? defaultCurrency)
         _name = State(initialValue: draft.name ?? "")
+        _chosenCandidate = State(initialValue: chosen)
         let parsed = draft.dateString.flatMap { PortfolioImportView.dateFrom($0) }
         _hasDate = State(initialValue: parsed != nil)
         _date = State(initialValue: parsed ?? Date())
@@ -607,6 +688,10 @@ private struct ImportRowEditView: View {
                 Color.bgDeep.ignoresSafeArea()
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
+                        if !candidates.isEmpty {
+                            disambiguationSection
+                        }
+
                         labeledField(lm.t("import.edit_ticker")) {
                             TextField("", text: $symbol)
                                 .textInputAutocapitalization(.characters)
@@ -709,6 +794,61 @@ private struct ImportRowEditView: View {
         }
     }
 
+    // MARK: - Disambiguation ("Did you mean?")
+
+    private var disambiguationSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            OverlineLabel(lm.t("import.did_you_mean"))
+            VStack(spacing: 0) {
+                ForEach(Array(candidates.enumerated()), id: \.element.id) { index, cand in
+                    Button {
+                        haptic(.light)
+                        chosenCandidate = cand
+                        symbol = cand.symbol
+                        if !cand.name.isEmpty, cand.coinId != nil { name = cand.name }
+                    } label: {
+                        candidateRow(cand)
+                    }
+                    .buttonStyle(.plain)
+                    if index < candidates.count - 1 {
+                        Rectangle().fill(Color.separatorHair).frame(height: 0.5).padding(.leading, 56)
+                    }
+                }
+            }
+            .background(rowBG)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+    }
+
+    @ViewBuilder
+    private func candidateRow(_ cand: ImportCandidate) -> some View {
+        let selected = chosenCandidate?.id == cand.id
+        let isCrypto = cand.coinId != nil
+        HStack(spacing: 12) {
+            MonogramTile(symbol: cand.symbol, size: 32)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(cand.symbol)
+                    .font(.system(size: 14.5, weight: .bold))
+                    .foregroundStyle(Color.textPrimary)
+                Text(cand.name)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Color.labelSecondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            Text(isCrypto ? lm.t("import.tag_crypto") : lm.t("import.tag_stock"))
+                .font(.system(size: 9.5, weight: .heavy)).tracking(0.4)
+                .foregroundStyle(isCrypto ? Color.mintAccent : Color.labelSecondary)
+                .padding(.horizontal, 7).padding(.vertical, 3)
+                .background(Capsule().fill((isCrypto ? Color.mintAccent : Color.neutralFlat).opacity(0.14)))
+            Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(selected ? Color.mintAccent : Color.labelQuaternary)
+        }
+        .padding(.horizontal, 14).padding(.vertical, 11)
+        .contentShape(Rectangle())
+    }
+
     private var rowBG: some View {
         RoundedRectangle(cornerRadius: 16, style: .continuous)
             .fill(Color.surface)
@@ -736,16 +876,21 @@ private struct ImportRowEditView: View {
             let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f.string(from: date)
         }() : nil
 
+        // A pick is only valid if the ticker still matches it (they may have
+        // typed a different symbol afterwards).
+        let pick = (chosenCandidate?.symbol.uppercased() == sym) ? chosenCandidate : nil
+        let coinId = pick?.coinId ?? PortfolioImportParser.knownCrypto[sym]
+
         let updated = ImportDraft(
             id: draft.id, line: draft.line, symbol: sym,
             name: name.isEmpty ? nil : name,
             shares: shares, price: price,
             currency: isWatchlist ? nil : currency.rawValue,
             dateString: dateStr,
-            coinId: PortfolioImportParser.knownCrypto[sym]
+            coinId: coinId
         )
         haptic(.light)
-        onSave(updated)
+        onSave(updated, pick)
     }
 }
 

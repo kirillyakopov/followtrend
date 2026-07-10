@@ -454,6 +454,11 @@
     "edit_has_date": "Указати дату покупки",
     "edit_date": "Дата покупки",
     "edit_remove": "Вилучити з імпорту",
-    "edit_save": "Готово"
+    "edit_save": "Готово",
+    "did_you_mean": "Можливо, ви мали на увазі?",
+    "choose": "Вибрати",
+    "needs_choice_count": "Потрібен вибір: %@",
+    "tag_crypto": "Крипта",
+    "tag_stock": "Акція"
   }
 }

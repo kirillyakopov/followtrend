@@ -454,6 +454,11 @@
     "edit_has_date": "Définir une date d'achat",
     "edit_date": "Date d'achat",
     "edit_remove": "Retirer de l'importation",
-    "edit_save": "Terminé"
+    "edit_save": "Terminé",
+    "did_you_mean": "Vouliez-vous dire ?",
+    "choose": "Choisir",
+    "needs_choice_count": "%@ nécessite un choix",
+    "tag_crypto": "Crypto",
+    "tag_stock": "Action"
   }
 }

@@ -454,6 +454,11 @@
     "edit_has_date": "Указать дату покупки",
     "edit_date": "Дата покупки",
     "edit_remove": "Убрать из импорта",
-    "edit_save": "Готово"
+    "edit_save": "Готово",
+    "did_you_mean": "Возможно, вы имели в виду?",
+    "choose": "Выбрать",
+    "needs_choice_count": "Требуется выбор: %@",
+    "tag_crypto": "Крипта",
+    "tag_stock": "Акция"
   }
 }

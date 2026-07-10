@@ -41,12 +41,27 @@ final class StockDetailViewModel: ObservableObject {
         investment.shares * displayPrice(mode: mode)
     }
 
-    func gainLoss(mode: PriceSourceMode) -> Double {
-        currentValue(mode: mode) - investment.totalCost
+    // MARK: - Selected-currency accessors
+    // Live-derived numbers convert from `priceCurrency`; cost-derived numbers
+    // convert from `nativeCurrency`. Combining the two (gain/loss) only happens
+    // AFTER both sides are in the selected currency — never subtract across
+    // currencies, or EUR-quoted crypto gets mixed with a USD cost basis.
+
+    func costInSelectedCurrency() -> Double {
+        CurrencyService.shared.convertToSelected(value: investment.totalCost, from: investment.nativeCurrency)
     }
 
-    func gainPercent(mode: PriceSourceMode) -> Double {
-        investment.totalCost > 0 ? (gainLoss(mode: mode) / investment.totalCost) * 100 : 0
+    func currentValueInSelectedCurrency(mode: PriceSourceMode) -> Double {
+        CurrencyService.shared.convertToSelected(value: currentValue(mode: mode), from: investment.priceCurrency)
+    }
+
+    func gainLossInSelectedCurrency(mode: PriceSourceMode) -> Double {
+        currentValueInSelectedCurrency(mode: mode) - costInSelectedCurrency()
+    }
+
+    func gainPercentInSelectedCurrency(mode: PriceSourceMode) -> Double {
+        let cost = costInSelectedCurrency()
+        return cost > 0 ? (gainLossInSelectedCurrency(mode: mode) / cost) * 100 : 0
     }
 
     func refresh() {
@@ -209,7 +224,7 @@ struct StockDetailView: View {
             Spacer(minLength: 12)
 
             VStack(alignment: .trailing, spacing: 3) {
-                Text(CurrencyService.shared.format(value: inv.isWatchlist ? detailVM.livePrice : detailVM.displayPrice(mode: priceSourceMode), from: inv.nativeCurrency))
+                Text(CurrencyService.shared.format(value: inv.isWatchlist ? detailVM.livePrice : detailVM.displayPrice(mode: priceSourceMode), from: inv.priceCurrency))
                     .font(.system(size: 21, weight: .heavy))
                     .monospacedDigit()
                     .foregroundStyle(Color.textPrimary)
@@ -234,7 +249,7 @@ struct StockDetailView: View {
             ChartView(
                 symbol:     inv.symbol,
                 coinId:     detailVM.coinId,
-                isPositive: inv.isWatchlist ? (detailVM.priceChange >= 0) : (detailVM.gainLoss(mode: priceSourceMode) >= 0),
+                isPositive: inv.isWatchlist ? (detailVM.priceChange >= 0) : (detailVM.gainLossInSelectedCurrency(mode: priceSourceMode) >= 0),
                 priceAdjustmentFactor: inv.priceAdjustmentFactor,
                 displayBrokerAdjustedChart: priceSourceMode == .brokerAdjusted
             )
@@ -274,9 +289,9 @@ struct StockDetailView: View {
                 Spacer(minLength: 10)
                 statColumn(lm.t("detail.gewinn_verlust"),
                            value: String(format: "%@%.1f%%",
-                                         detailVM.gainPercent(mode: priceSourceMode) >= 0 ? "+" : "",
-                                         detailVM.gainPercent(mode: priceSourceMode)),
-                           color: detailVM.gainLoss(mode: priceSourceMode).gainTextColor,
+                                         detailVM.gainPercentInSelectedCurrency(mode: priceSourceMode) >= 0 ? "+" : "",
+                                         detailVM.gainPercentInSelectedCurrency(mode: priceSourceMode)),
+                           color: detailVM.gainLossInSelectedCurrency(mode: priceSourceMode).gainTextColor,
                            alignment: .trailing)
             }
 
@@ -286,13 +301,13 @@ struct StockDetailView: View {
 
             HStack(alignment: .top) {
                 statColumn(lm.t("detail.aktuelle_wert"),
-                           value: CurrencyService.shared.format(value: detailVM.currentValue(mode: priceSourceMode), from: inv.nativeCurrency))
+                           value: CurrencyService.shared.formatConverted(detailVM.currentValueInSelectedCurrency(mode: priceSourceMode)))
                 Spacer(minLength: 10)
                 statColumn(lm.t("detail.gewinn_verlust"),
                            value: String(format: "%@%@",
-                                         detailVM.gainLoss(mode: priceSourceMode) >= 0 ? "+" : "−",
-                                         CurrencyService.shared.format(value: abs(detailVM.gainLoss(mode: priceSourceMode)), from: inv.nativeCurrency)),
-                           color: detailVM.gainLoss(mode: priceSourceMode).gainTextColor)
+                                         detailVM.gainLossInSelectedCurrency(mode: priceSourceMode) >= 0 ? "+" : "−",
+                                         CurrencyService.shared.formatConverted(abs(detailVM.gainLossInSelectedCurrency(mode: priceSourceMode)))),
+                           color: detailVM.gainLossInSelectedCurrency(mode: priceSourceMode).gainTextColor)
                 Spacer(minLength: 10)
                 statColumn(lm.t("detail.kaufdatum"), value: inv.buyDate, alignment: .trailing)
             }
@@ -414,7 +429,7 @@ struct StockDetailView: View {
                 if canConfirm {
                     HStack {
                         Spacer()
-                        Text("≈ \(CurrencyService.shared.format(value: valShares * valPrice, from: inv.nativeCurrency))")
+                        Text("≈ \(CurrencyService.shared.format(value: valShares * valPrice, from: inv.priceCurrency))")
                             .font(.system(size: 12, weight: .semibold))
                             .monospacedDigit()
                             .foregroundStyle(Color.labelTertiary)

@@ -454,6 +454,11 @@
     "edit_has_date": "Establecer una fecha de compra",
     "edit_date": "Fecha de compra",
     "edit_remove": "Quitar de la importación",
-    "edit_save": "Hecho"
+    "edit_save": "Hecho",
+    "did_you_mean": "¿Quisiste decir?",
+    "choose": "Elegir",
+    "needs_choice_count": "%@ necesita una elección",
+    "tag_crypto": "Cripto",
+    "tag_stock": "Acción"
   }
 }

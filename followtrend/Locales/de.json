@@ -453,6 +453,11 @@
     "edit_has_date": "Kaufdatum festlegen",
     "edit_date": "Kaufdatum",
     "edit_remove": "Aus Import entfernen",
-    "edit_save": "Fertig"
+    "edit_save": "Fertig",
+    "did_you_mean": "Meintest du?",
+    "choose": "Wählen",
+    "needs_choice_count": "%@ benötigt eine Auswahl",
+    "tag_crypto": "Crypto",
+    "tag_stock": "Aktie"
   }
 }

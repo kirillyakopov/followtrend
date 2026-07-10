@@ -454,6 +454,11 @@
     "edit_has_date": "Set a buy date",
     "edit_date": "Buy date",
     "edit_remove": "Remove from import",
-    "edit_save": "Done"
+    "edit_save": "Done",
+    "did_you_mean": "Did you mean?",
+    "choose": "Choose",
+    "needs_choice_count": "%@ needs a choice",
+    "tag_crypto": "Crypto",
+    "tag_stock": "Stock"
   }
 }

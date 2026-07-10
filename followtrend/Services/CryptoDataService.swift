@@ -134,5 +134,38 @@ final class CryptoDataService {
         }
     }
 
+    /// Non-swallowing lookup used by portfolio-import validation.
+    ///
+    /// Unlike `searchCoins`, this distinguishes "the API said there are no
+    /// coins" from "the request failed": it returns `nil` on ANY network /
+    /// decode error (offline, rate limited, malformed) and `[]` only when the
+    /// API definitively returned an empty coin list. Returns the full coin
+    /// list (unclamped) so the caller can pick exact-symbol matches, which
+    /// may rank below the market-cap-sorted head.
+    func resolveCoins(query: String) async -> [SearchResult]? {
+        let q = query.trimmingCharacters(in: .whitespaces)
+        guard !q.isEmpty else { return [] }
+
+        guard let url = net.makeURL(
+            base: APIConfig.coinGeckoBaseURL,
+            path: "/search",
+            params: ["query": q]
+        ) else { return nil }
+
+        do {
+            let response: CoinGeckoSearchResponse = try await net.fetch(url)
+            return response.coins.map { coin in
+                SearchResult(
+                    symbol: coin.symbol.uppercased(),
+                    name:   coin.name,
+                    kind:   .crypto,
+                    coinId: coin.id
+                )
+            }
+        } catch {
+            return nil   // network / rate-limit / decode → unverified, don't accuse
+        }
+    }
+
     // Removed mock fallbacks
 }
