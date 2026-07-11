@@ -19,3 +19,6 @@ xcuserdata/
 # Local scratch binaries
 /test
 /test2
+
+# Secrets (copy Secrets.example.xcconfig → Secrets.xcconfig locally)
+followtrend/Config/Secrets.xcconfig

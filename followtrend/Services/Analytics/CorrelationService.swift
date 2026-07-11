@@ -89,9 +89,11 @@ actor CorrelationService {
             return false
         }
 
-        // Test Case 3: Zero Correlation (Orthogonal variation)
+        // Test Case 3: Zero Correlation. A symmetric "V" (down then up) is
+        // orthogonal to the linear ramp: its covariance numerator sums to zero,
+        // so Pearson r == 0. (The old [1,-1,1,-1] actually gives r ≈ -0.447.)
         let x3 = [1.0, 2.0, 3.0, 4.0]
-        let y3 = [1.0, -1.0, 1.0, -1.0]
+        let y3 = [1.0, 2.0, 2.0, 1.0]
         let r3 = pearson(x: x3, y: y3)
         guard let r3Value = r3, abs(r3Value) < 0.1 else {
             print("CorrelationService [Self-Test Failed]: Zero correlation test failed (got \(String(describing: r3))).")

@@ -10,33 +10,33 @@ final class CorrelationServiceTests: XCTestCase {
     private let service = CorrelationService.shared
     private let accuracy = 0.000001
 
-    func testPearsonPerfectPositiveCorrelation() async {
+    func testPearsonPerfectPositiveCorrelation() async throws {
         let result = await service.pearson(
             x: [1, 2, 3, 4, 5],
             y: [2, 4, 6, 8, 10]
         )
 
-        XCTAssertEqual(result, 1.0, accuracy: accuracy)
+        XCTAssertEqual(try XCTUnwrap(result), 1.0, accuracy: accuracy)
         XCTAssertWithinPearsonBounds(result)
     }
 
-    func testPearsonPerfectNegativeCorrelation() async {
+    func testPearsonPerfectNegativeCorrelation() async throws {
         let result = await service.pearson(
             x: [1, 2, 3, 4, 5],
             y: [10, 8, 6, 4, 2]
         )
 
-        XCTAssertEqual(result, -1.0, accuracy: accuracy)
+        XCTAssertEqual(try XCTUnwrap(result), -1.0, accuracy: accuracy)
         XCTAssertWithinPearsonBounds(result)
     }
 
-    func testPearsonKnownDataset() async {
+    func testPearsonKnownDataset() async throws {
         let result = await service.pearson(
             x: [43, 21, 25, 42, 57, 59],
             y: [99, 65, 79, 75, 87, 81]
         )
 
-        XCTAssertEqual(result, 0.5298089018901744, accuracy: accuracy)
+        XCTAssertEqual(try XCTUnwrap(result), 0.5298089018901744, accuracy: accuracy)
         XCTAssertWithinPearsonBounds(result)
     }
 

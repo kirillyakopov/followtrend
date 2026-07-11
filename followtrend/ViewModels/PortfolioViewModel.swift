@@ -237,7 +237,7 @@ final class PortfolioViewModel: ObservableObject {
         inv.fxRateAtCreation = Investment.fxRate(from: draft.brokerCurrency, to: displayCurrency, currencyService: CurrencyService.shared)
     }
 
-    // MARK: Live price refresh (Finnhub quotes + CoinGecko)
+    // MARK: Live price refresh (Yahoo quotes + crypto proxy)
 
     func refreshLivePrices() async {
         isPriceFetching = true
@@ -641,12 +641,25 @@ final class PortfolioViewModel: ObservableObject {
     func buyWatchlistItem(id: String, shares: Double, price: Double, date: String) {
         guard let watchListIdx = investments.firstIndex(where: { $0.id == id }) else { return }
         let item = investments[watchListIdx]
-        
+
+        // The entered price is prefilled from — and denominated in — the live
+        // quote's currency (`priceCurrency`: EUR for crypto, USD for stocks), not
+        // the watchlist item's placeholder cost currency. Tag the cost basis with
+        // that currency so crypto positions aren't stored as if they were USD.
+        let costCurrency = item.priceCurrency
+
         if let existingIdx = investments.firstIndex(where: { $0.symbol == item.symbol && !$0.isWatchlist }) {
             withAnimation(.easeInOut(duration: 0.35)) {
                 let existing = investments[existingIdx]
+                // Bring the new lot into the existing position's cost currency
+                // before weighted-averaging, or the blend mixes EUR and USD.
+                let priceInExisting = CurrencyService.shared.convert(
+                    value: price,
+                    from: AppCurrency(rawValue: costCurrency) ?? .usd,
+                    to: AppCurrency(rawValue: existing.nativeCurrency.uppercased()) ?? .usd
+                )
                 let totalShares = existing.shares + shares
-                let weightedPrice = (existing.shares * existing.buyPrice + shares * price) / totalShares
+                let weightedPrice = (existing.shares * existing.buyPrice + shares * priceInExisting) / totalShares
                 investments[existingIdx].shares = totalShares
                 investments[existingIdx].buyPrice = weightedPrice
                 investments.remove(at: watchListIdx)
@@ -656,6 +669,7 @@ final class PortfolioViewModel: ObservableObject {
                 investments[watchListIdx].shares = shares
                 investments[watchListIdx].buyPrice = price
                 investments[watchListIdx].buyDate = date
+                investments[watchListIdx].nativeCurrency = costCurrency
                 investments[watchListIdx].isWatchlist = false
             }
         }

@@ -2,15 +2,15 @@
 //  MarketDataService.swift
 //  followtrend
 //
-//  Fetches stock candles and live quotes from Finnhub.
-//  Falls back to mock data when APIConfig.finnhubKey is empty.
+//  Fetches stock/ETF candles and live quotes from Yahoo Finance's chart API.
+//  Returns empty/mock-backed values when a request fails.
 //
-//  Correct timeframe → Finnhub resolution mapping:
-//  1D  → 1 min  (intraday candles for last trading session)
-//  1W  → 15 min
-//  1M  → 60 min (1 hour)
-//  1Y  → D      (daily)
-//  Max → W      (weekly)
+//  Timeframe → Yahoo range/interval mapping (see `fetchCandles`):
+//  1D  → 5d / 5m
+//  1W  → 1mo / 15m
+//  1M  → 3mo / 1d
+//  1Y  → 1y / 1d
+//  Max → max / 1wk
 //
 
 import Foundation
@@ -45,18 +45,6 @@ private struct YahooQuote: Decodable {
     let high: [Double?]?
     let low: [Double?]?
     let volume: [Double?]?
-}
-
-private struct FinnhubSearchResponse: Decodable {
-    let count: Int
-    let result: [FinnhubMatch]
-}
-
-private struct FinnhubMatch: Decodable {
-    let description:   String
-    let displaySymbol: String
-    let symbol:        String
-    let type:          String
 }
 
 // MARK: - Cache entry

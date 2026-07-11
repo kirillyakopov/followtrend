@@ -46,17 +46,6 @@ enum Timeframe: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    /// Finnhub resolution string (matches correct granularity per timeframe)
-    var finnhubResolution: String {
-        switch self {
-        case .oneDay:   return "5"    // 5-min bars over 24h → ~288 bars
-        case .oneWeek:  return "15"   // 15-min bars → ~672 bars
-        case .oneMonth: return "60"   // 1-hour bars → ~744 bars
-        case .oneYear:  return "D"    // daily bars  → ~252 trading days
-        case .max:      return "D"    // daily bars over 5yr → ~1260 bars (weekly unreliable free tier)
-        }
-    }
-
     /// How many days back to fetch
     var daysBack: Int {
         switch self {

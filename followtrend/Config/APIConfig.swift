@@ -2,36 +2,39 @@
 //  APIConfig.swift
 //  followtrend
 //
-//  Centralised API key configuration.
-//  Paste your keys below — the app gracefully falls back to mock data
-//  when keys are empty.
+//  Centralised endpoint + secret configuration.
 //
-//  Providers:
-//  - Finnhub (stocks/search): https://finnhub.io  (free tier available)
-//  - CoinGecko (crypto):      https://www.coingecko.com  (no key required for free tier)
-//  - Alpha Vantage (fallback):https://www.alphavantage.co  (free tier available)
+//  Live data sources actually in use:
+//  - Stocks/ETFs: Yahoo Finance chart API (see MarketDataService) — no key.
+//  - Crypto:      Render proxy (prices/candles/FX) + CoinGecko (search/resolve).
+//
+//  The proxy secret is NOT committed. It is read at runtime from the
+//  `PROXY_SECRET` environment variable (tests/CI) or the `ProxySecret`
+//  Info.plist key, which is populated from the gitignored
+//  `followtrend/Config/Secrets.xcconfig` (see `Secrets.example.xcconfig`).
+//  When unset, `proxySecret` is empty and the app degrades to mock data.
 //
 
 import Foundation
 
 enum APIConfig {
-    // MARK: - Proxy Server
-    // Pointing to your newly deployed Render server
-    static let proxyBaseURL    = "https://crypto-proxy-221x.onrender.com"
-    static let proxySecret     = "my-super-secret-key-2026"
+    // MARK: - Proxy Server (crypto prices/candles + FX)
+    static let proxyBaseURL = "https://crypto-proxy-221x.onrender.com"
 
-    // MARK: - Finnhub  (stocks, ETFs, search)
-    static let finnhubKey      = "d87eoq9r01ql0hslfu60d87eoq9r01ql0hslfu6g"          // e.g. "cxxxxxxxxxxxxxxxxxxxxxx"
-    static let finnhubBaseURL  = "https://finnhub.io/api/v1"
+    /// Bearer token for the proxy. Resolved from the environment first (so tests
+    /// and CI can inject it) then the app's Info.plist. Never hard-coded here.
+    static let proxySecret: String = {
+        if let env = ProcessInfo.processInfo.environment["PROXY_SECRET"],
+           !env.isEmpty {
+            return env
+        }
+        if let plist = Bundle.main.object(forInfoDictionaryKey: "ProxySecret") as? String,
+           !plist.isEmpty, !plist.hasPrefix("$(") {
+            return plist
+        }
+        return ""
+    }()
 
-    // MARK: - CoinGecko  (crypto — no key needed for /v3 free endpoints)
+    // MARK: - CoinGecko  (crypto search/resolve — no key needed for /v3 free endpoints)
     static let coinGeckoBaseURL = "https://api.coingecko.com/api/v3"
-
-    // MARK: - Alpha Vantage  (optional fallback)
-    static let alphaVantageKey     = ""      // e.g. "DEMO"
-    static let alphaVantageBaseURL = "https://www.alphavantage.co/query"
-
-    // MARK: - Feature flags
-    static var canFetchLiveStockData: Bool { !finnhubKey.isEmpty }
-    static var canFetchLiveCryptoData: Bool { true }   // CoinGecko needs no key
 }

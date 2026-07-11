@@ -7,20 +7,28 @@ State snapshot for resuming work after a context reset / in a fresh session.
 
 ---
 
-## Build & verify (no simulator here)
+## Build & verify
 
-The local CoreSimulator runtime is out of date, so the app can't be run or
-screenshotted in this environment. Type-check the whole app with:
+Type-check the whole app with:
 
 ```
 xcodebuild -project followtrend.xcodeproj -scheme followtrend \
   -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO build
 ```
 
+**Simulators DO work now** (the old "runtime out of date" note is stale). The
+machine has the **iPhone 17 family on iOS 26.5** — *not* iPhone 16. List valid
+destinations with `xcodebuild -scheme followtrend -showdestinations`. Run tests:
+
+```
+xcodebuild test -project followtrend.xcodeproj -scheme followtrend \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' CODE_SIGNING_ALLOWED=NO
+```
+
 `swiftc -parse <file>` is a fast syntax-only pre-check. `PortfolioImportParser`
-is now **pure Foundation** (no network) — it compiles/runs standalone, which is
-how import parsing is verified. Test target: `followtrendTests/` (has
-`CorrelationServiceTests.swift`; parser has no tests yet — easiest high-value add).
+is **pure Foundation** (no network) — it also compiles/runs standalone. Test
+target `followtrendTests/` now has **`PortfolioImportParserTests` (21 tests) +
+`CorrelationServiceTests` (6) — all green.**
 
 ## Design system (single source: `DesignSystem/DesignSystem.swift`)
 
@@ -57,8 +65,15 @@ Two distinct currencies per `Investment` (`Models/StockModels.swift`):
   unlicensed, rate-limit risk).
 - **Crypto:** Render proxy `crypto-proxy-221x.onrender.com` for prices/candles +
   FX; **CoinGecko** direct for search/resolve (`CryptoDataService.resolveCoins`).
-- **Finnhub / Alpha Vantage are DEAD** — referenced in comments/labels only; no
-  calls. `APIConfig.canFetchLiveStockData` is misleading.
+- **Finnhub / Alpha Vantage fully REMOVED** — dead keys, decode structs, the
+  `finnhubResolution` var, and `canFetchLiveStockData` are gone; stale comments
+  corrected to say Yahoo. `APIConfig` now holds only `proxyBaseURL`,
+  `proxySecret` (see secrets note), and `coinGeckoBaseURL`.
+- **Proxy secret is no longer committed.** `APIConfig.proxySecret` reads env
+  `PROXY_SECRET` → Info.plist `ProxySecret` (populated from `$(PROXY_SECRET)`) →
+  `""`. The value lives in gitignored `followtrend/Config/Secrets.xcconfig`
+  (template: `Secrets.example.xcconfig`), wired as the app target's base config.
+  Absent file ⇒ empty secret ⇒ mock data, build still succeeds.
 
 ## What's done (branch `codex-broker-adjustments-bubble-optimization`)
 
@@ -75,29 +90,40 @@ Two distinct currencies per `Investment` (`Models/StockModels.swift`):
 - Crypto currency correctness across home/detail/alert surfaces + chart candle
   aggregation. Debug logging removed.
 - Localization across 6 languages for every added string.
+- **Cleanup pass (this session):**
+  - Watchlist→crypto convert now tags cost basis with the item's `priceCurrency`
+    (EUR for crypto), and converts the new lot into the existing position's
+    currency before weighted-averaging (`buyWatchlistItem`). Convert-sheet preview
+    formats from `priceCurrency` too. *(was open item #2)*
+  - Committed secrets removed; Finnhub / Alpha Vantage code deleted. *(#3, #4)*
+  - **`PortfolioImportParserTests` (21 tests)** added + wired into the test target.
+    Empirically validated against a standalone run of the parser. *(#5)*
+  - Fixed two pre-existing bugs that kept the test target from ever going green:
+    `CorrelationServiceTests` fed `Double?` into `XCTAssertEqual(…accuracy:)`
+    (→ `try XCTUnwrap`); and `CorrelationService.runSelfTests()` used a bogus
+    "zero correlation" dataset (`[1,-1,1,-1]` is r≈-0.447) → now `[1,2,2,1]`.
 
 ## Open items / known gaps
 
 1. **Old price alerts** keep their pre-fix `baseCurrency` until re-saved (no
    migration written; `PriceAlertStore` untouched).
-2. **Watchlist→crypto convert** tags the new position's cost basis `USD` even
-   though the EUR live price was used — *display* math is correct, *write* path
-   mis-tags `nativeCurrency`.
-3. **Secrets committed** in `Config/APIConfig.swift` (`proxySecret`, a real-looking
-   `finnhubKey`). Security debt.
-4. **Dead Finnhub / Alpha Vantage** code across ~7 files — cleanup.
-5. **Parser unit tests** — `PortfolioImportParser` is pure & runnable; best ROI.
-6. **PR not created** (no `gh` CLI / GitHub connector auth). Branch is pushed;
+2. **Proxy secret & git history.** The secret is out of current source, but the
+   old literal (`proxySecret`, `finnhubKey`) still exists in past commits. If that
+   matters, rotate the proxy token / scrub history (`git filter-repo`) — not done
+   (destructive, out of scope). New clones need `Secrets.xcconfig` (copy the
+   `.example`) or crypto falls back to mock.
+3. **PR not created** (no `gh` CLI / GitHub connector auth). Branch is pushed;
    open via `https://github.com/kirillyakopov/followtrend/pull/new/codex-broker-adjustments-bubble-optimization`.
-7. **Beta** metric intentionally omitted from Risk Overview (needs a benchmark
+4. **Beta** metric intentionally omitted from Risk Overview (needs a benchmark
    return series, e.g. SPY). Top-holding concentration took its slot.
-8. Import future work: Files-app / share-sheet CSV, batch undo, screenshot OCR
+5. Import future work: Files-app / share-sheet CSV, batch undo, screenshot OCR
    (Phase 2 Vision — plugs into the same review pipeline).
 
 ## Suggested next
 
-Parser unit tests · secrets out + kill dead Finnhub · fix watchlist→crypto cost
-tagging (#2) · then feature polish.
+Old-alert currency migration (#1) · create the PR (#3) · then feature polish
+(SPY-based Beta, CSV import surfaces). Consider adding more parser edge-case tests
+and a first test for `CurrencyService` conversions while the target is green.
 
 ## Artifacts (design/product docs)
 

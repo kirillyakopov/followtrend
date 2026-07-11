@@ -3,7 +3,7 @@
 //  followtrend
 //
 //  Dedicated VM for the Add Position market search.
-//  Searches stocks (Finnhub) + ETFs + crypto (CoinGecko) in parallel.
+//  Searches stocks + ETFs (local catalogue / Yahoo) + crypto (CoinGecko) in parallel.
 //  Fetches live current price when a result is selected.
 //
 
@@ -108,7 +108,7 @@ final class MarketSearchViewModel: ObservableObject {
                 if let coinId = result.coinId {
                     price = try await cryptoService.currentPrice(coinId: coinId)
                 } else {
-                    // Fetch live quote from Finnhub
+                    // Fetch live quote from Yahoo
                     price = try await stockService.fetchQuote(symbol: result.symbol)
                 }
                 guard !Task.isCancelled else { return }

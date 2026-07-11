@@ -68,7 +68,7 @@ struct ConvertWatchlistPositionView: View {
                             if isValid {
                                 HStack {
                                     Spacer()
-                                    Text("≈ \(CurrencyService.shared.format(value: parsedShares * parsedPrice, from: investment.nativeCurrency))")
+                                    Text("≈ \(CurrencyService.shared.format(value: parsedShares * parsedPrice, from: investment.priceCurrency))")
                                         .font(.system(size: 12, weight: .semibold))
                                         .monospacedDigit()
                                         .foregroundStyle(Color.labelTertiary)

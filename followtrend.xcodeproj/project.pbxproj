@@ -10,6 +10,7 @@
 		17B0203BC75DE6870723185C /* PortfolioEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 480FC03554618DB4AE534B32 /* PortfolioEntry.swift */; };
 		1B2D6DF9F9E243E39F30821C /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F436AEC2910244EC8D0B4D3C /* XCTest.framework */; };
 		5A6FE968B57E4811AE848D58 /* CorrelationServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22B89A98ED0346A4B013D5A8 /* CorrelationServiceTests.swift */; };
+		F75EC0F16000000000000003 /* PortfolioImportParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F75EC0F16000000000000002 /* PortfolioImportParserTests.swift */; };
 		6AC359DD5315E3AC105B7DB4 /* WidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36A705F384B9A1D73965EE7E /* WidgetView.swift */; };
 		82A89337736B1F43C31C4F63 /* PortfolioWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF8194B26DFC3D33D91F1CA8 /* PortfolioWidget.swift */; };
 		8BD9492C724A36B9D88CC026 /* PortfolioProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEF43F1C5EFC51D6587BD8F4 /* PortfolioProvider.swift */; };
@@ -29,7 +30,9 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		F75EC0F16000000000000001 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = followtrend/Config/Secrets.xcconfig; sourceTree = SOURCE_ROOT; };
 		22B89A98ED0346A4B013D5A8 /* CorrelationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CorrelationServiceTests.swift; sourceTree = "<group>"; };
+		F75EC0F16000000000000002 /* PortfolioImportParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortfolioImportParserTests.swift; sourceTree = "<group>"; };
 		36A705F384B9A1D73965EE7E /* WidgetView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WidgetView.swift; path = followtrend/Widgets/WidgetView.swift; sourceTree = "<group>"; };
 		4563B5E59A4D4CACE1935324 /* PortfolioStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PortfolioStore.swift; path = followtrend/Shared/PortfolioStore.swift; sourceTree = "<group>"; };
 		480FC03554618DB4AE534B32 /* PortfolioEntry.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PortfolioEntry.swift; path = followtrend/Widgets/PortfolioEntry.swift; sourceTree = "<group>"; };
@@ -109,6 +112,7 @@
 			isa = PBXGroup;
 			children = (
 				22B89A98ED0346A4B013D5A8 /* CorrelationServiceTests.swift */,
+				F75EC0F16000000000000002 /* PortfolioImportParserTests.swift */,
 			);
 			path = followtrendTests;
 			sourceTree = "<group>";
@@ -316,6 +320,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				5A6FE968B57E4811AE848D58 /* CorrelationServiceTests.swift in Sources */,
+				F75EC0F16000000000000003 /* PortfolioImportParserTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -572,6 +577,7 @@
 		};
 		F7671C9F2FBE5C8D00FF3E3E /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = F75EC0F16000000000000001 /* Secrets.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -607,6 +613,7 @@
 		};
 		F7671CA02FBE5C8D00FF3E3E /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = F75EC0F16000000000000001 /* Secrets.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;

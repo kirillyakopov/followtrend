@@ -33,7 +33,7 @@ final class StockMarketService: ObservableObject {
         liveStocks.keys.sorted()
     }
 
-    // MARK: Update with real price from Finnhub / CoinGecko
+    // MARK: Update with real price from Yahoo / crypto proxy
 
     func updatePrice(symbol: String, price: Double) {
         let key = symbol.uppercased()

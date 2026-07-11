@@ -38,7 +38,7 @@ final class NetworkService {
         let cfg = URLSessionConfiguration.default
         cfg.timeoutIntervalForRequest  = 15
         cfg.timeoutIntervalForResource = 30
-        cfg.requestCachePolicy = .useProtocolCachePolicy  // respect Finnhub Cache-Control
+        cfg.requestCachePolicy = .useProtocolCachePolicy  // respect upstream Cache-Control
         return URLSession(configuration: cfg)
     }()
 
@@ -48,8 +48,8 @@ final class NetworkService {
     func fetch<T: Decodable>(_ url: URL) async throws -> T {
         var request = URLRequest(url: url)
         
-        // Attach shared secret if talking to our proxy server
-        if url.absoluteString.hasPrefix(APIConfig.proxyBaseURL) {
+        // Attach shared secret if talking to our proxy server (skip when unset)
+        if url.absoluteString.hasPrefix(APIConfig.proxyBaseURL), !APIConfig.proxySecret.isEmpty {
             request.addValue("Bearer \(APIConfig.proxySecret)", forHTTPHeaderField: "Authorization")
         }
         
